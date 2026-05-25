@@ -111,7 +111,13 @@
 <div class="footer">Asistente basado en legislación y resoluciones de Registro Civil español · DGRN / DGSJFP</div>
 
 <script>
+const PROXY_URL = "https://funcionarios-rc-proxy.rcscpalma.workers.dev";
 const BRIDGE_URL = "https://script.google.com/macros/s/AKfycby1t6ZOFVdXhlwXHFuUkmfoSJFsJ-SwD40HmO-k7CgCKdfyPUGTj69ZqxoVy8zm2Ukp/exec";
+
+function proxyFetch(bridgeParams) {
+  const target = encodeURIComponent(BRIDGE_URL + "?" + bridgeParams);
+  return fetch(PROXY_URL + "?url=" + target).then(r => r.json());
+}
 
 let mode = "chat";
 let connected = false;
@@ -169,8 +175,7 @@ async function handleDriveBtn() {
   setMode("drive");
   document.getElementById("driveContent").innerHTML = "<div style='padding:24px;color:#888;font-size:14px;'>⏳ Conectando con Drive…</div>";
   try {
-    const r = await fetch(BRIDGE_URL + "?action=list");
-    const d = await r.json();
+    const d = await proxyFetch("action=list");
     if (d.error) throw new Error(d.error);
     files = d.files || [];
     document.getElementById("driveBtn").textContent = "🔓 Desconectar Drive";
@@ -208,9 +213,12 @@ function toggleDoc(id) {
 }
 
 async function callBridge(msgs) {
-  const params = new URLSearchParams({ action:"chat", messages: JSON.stringify(msgs), docIds: JSON.stringify(selectedDocs) });
-  const r = await fetch(BRIDGE_URL + "?" + params.toString());
-  const d = await r.json();
+  const params = new URLSearchParams({
+    action: "chat",
+    messages: JSON.stringify(msgs),
+    docIds: JSON.stringify(selectedDocs)
+  });
+  const d = await proxyFetch(params.toString());
   if (d.error) throw new Error(d.error);
   return d.reply || "Sin respuesta.";
 }
