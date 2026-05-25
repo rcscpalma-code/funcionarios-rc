@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Funcionarios RC</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; height: 100vh; display: flex; flex-direction: column; }
+    #app { background: #fff; border-radius: 12px; margin: 10px; border: 0.5px solid #e0e0e0; display: flex; flex-direction: column; flex: 1; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .header { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 0.5px solid #e0e0e0; }
+    .logo { width: 48px; height: 48px; border-radius: 10px; background: #E6F1FB; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .header-title { flex: 1; }
+    .header-title h1 { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+    .header-title p { font-size: 11px; color: #888; margin-top: 1px; }
+    .mode-bar { display: flex; gap: 6px; padding: 9px 16px; border-bottom: 0.5px solid #e0e0e0; background: #f8f9fa; flex-wrap: wrap; }
+    .mode-btn { padding: 5px 13px; font-size: 13px; border-radius: 7px; border: 1px solid #ddd; background: transparent; color: #666; cursor: pointer; }
+    .mode-btn.active { border: 1.5px solid #185FA5; background: #E6F1FB; color: #185FA5; font-weight: 500; }
+    .context-bar { padding: 6px 16px; background: #e8f5e9; border-bottom: 0.5px solid #c8e6c9; font-size: 12px; color: #2e7d32; }
+    .panel { flex: 1; overflow-y: auto; background: #f8f9fa; }
+    .messages { flex: 1; overflow-y: auto; padding: 16px 16px 8px; background: #f8f9fa; }
+    .bubble-wrap { display: flex; margin-bottom: 12px; }
+    .bubble-wrap.user { justify-content: flex-end; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; background: #E6F1FB; display: flex; align-items: center; justify-content: center; margin-right: 8px; flex-shrink: 0; align-self: flex-end; font-size: 13px; }
+    .bubble { max-width: 78%; padding: 10px 14px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+    .bubble.user { border-radius: 16px 16px 4px 16px; background: #185FA5; color: #fff; }
+    .bubble.assistant { border-radius: 16px 16px 16px 4px; background: #fff; color: #1a1a1a; border: 0.5px solid #e0e0e0; }
+    .input-bar { padding: 10px 12px; border-top: 0.5px solid #e0e0e0; display: flex; gap: 8px; align-items: flex-end; background: #fff; }
+    textarea { resize: none; font-size: 14px; padding: 8px 10px; border-radius: 8px; border: 1px solid #ddd; background: #f8f9fa; color: #1a1a1a; line-height: 1.5; font-family: inherit; outline: none; }
+    .send-btn { padding: 8px 16px; border-radius: 8px; background: #185FA5; color: #fff; border: none; cursor: pointer; font-size: 18px; flex-shrink: 0; }
+    .send-btn:disabled { background: #f0f0f0; color: #aaa; cursor: not-allowed; }
+    .connect-btn { font-size: 12px; padding: 5px 12px; border-radius: 7px; border: 1.5px solid #185FA5; background: #E6F1FB; color: #185FA5; cursor: pointer; font-weight: 500; }
+    .disconnect-btn { font-size: 12px; padding: 5px 12px; border-radius: 7px; border: 1px solid #ddd; background: #fff; color: #555; cursor: pointer; }
+    .file-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #fff; border: 1px solid #e0e0e0; border-radius: 9px; cursor: pointer; margin-bottom: 8px; }
+    .file-item.selected { border-color: #a5d6a7; }
+    .file-name { font-size: 13px; font-weight: 500; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+    .file-type { font-size: 11px; color: #aaa; margin-top: 1px; }
+    .checkbox { width: 20px; height: 20px; border-radius: 4px; border: 2px solid #ddd; background: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .checkbox.checked { border-color: #4CAF50; background: #4CAF50; color: #fff; font-size: 12px; font-weight: 700; }
+    .footer { padding: 6px 16px; font-size: 11px; color: #bbb; text-align: center; }
+    .typing { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .dots { background: #fff; border: 0.5px solid #e0e0e0; border-radius: 16px 16px 16px 4px; padding: 10px 16px; display: flex; gap: 4px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #185FA5; opacity: 0.6; animation: bounce 1.2s ease-in-out infinite; }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="logo">
+      <svg viewBox="0 0 120 100" width="48" height="40" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="60" cy="22" r="14" fill="#2196F3"/>
+        <path d="M38 75 Q38 50 60 50 Q82 50 82 75 L82 90 L38 90 Z" fill="#2196F3"/>
+        <circle cx="28" cy="30" r="11" fill="#F44336"/>
+        <path d="M8 85 Q8 62 28 62 Q38 62 44 70 L38 75 Q34 68 28 68 Q14 68 14 85 Z" fill="#F44336"/>
+        <circle cx="92" cy="30" r="11" fill="#4CAF50"/>
+        <path d="M112 85 Q112 62 92 62 Q82 62 76 70 L82 75 Q86 68 92 68 Q106 68 106 85 Z" fill="#4CAF50"/>
+        <rect x="48" y="60" width="10" height="30" rx="3" fill="#FF9800"/>
+        <rect x="62" y="55" width="10" height="35" rx="3" fill="#9C27B0"/>
+        <rect x="76" y="62" width="9" height="28" rx="3" fill="#FFEB3B"/>
+        <rect x="35" y="64" width="9" height="26" rx="3" fill="#F44336"/>
+      </svg>
+    </div>
+    <div class="header-title">
+      <h1>Funcionarios RC</h1>
+      <p>Asistente de Registro Civil</p>
+    </div>
+    <button class="connect-btn" id="driveBtn" onclick="handleDriveBtn()">📁 Cargar documentos</button>
+  </div>
+
+  <div class="mode-bar">
+    <button class="mode-btn active" id="btn-chat" onclick="setMode('chat')">💬 Chat</button>
+    <button class="mode-btn" id="btn-search" onclick="setMode('search')">🔍 Búsqueda directa</button>
+    <button class="mode-btn" id="btn-drive" onclick="setMode('drive')">📁 Documentos Drive</button>
+  </div>
+
+  <div id="context-bar" class="context-bar" style="display:none"></div>
+
+  <!-- Chat -->
+  <div id="panel-chat" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+    <div class="messages" id="messages"></div>
+    <div class="input-bar">
+      <textarea id="chatInput" rows="2" style="flex:1" placeholder="Escribe tu consulta… (Enter para enviar, Shift+Enter para nueva línea)" onkeydown="handleChatKey(event)"></textarea>
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div id="panel-search" class="panel" style="display:none;padding:24px;">
+    <div style="font-size:13px;color:#666;margin-bottom:16px;">ℹ️ Escribe tu consulta y obtén una respuesta directa con referencias normativas.</div>
+    <textarea id="searchInput" rows="4" style="width:100%" placeholder="Escribe aquí tu consulta sobre Registro Civil…" onkeydown="handleSearchKey(event)"></textarea>
+    <button onclick="runSearch()" id="searchBtn" style="margin-top:10px;padding:9px 20px;font-size:14px;border-radius:8px;background:#185FA5;color:#fff;border:none;cursor:pointer;font-weight:500;">Consultar ↗</button>
+    <div id="searchResult" style="margin-top:16px;"></div>
+  </div>
+
+  <!-- Drive -->
+  <div id="panel-drive" class="panel" style="display:none;padding:16px;">
+    <div id="driveContent">
+      <div style="text-align:center;padding:32px;color:#888;">
+        <div style="font-size:40px;margin-bottom:12px;">📁</div>
+        <div style="font-size:14px;margin-bottom:16px;">Carga los documentos de tu carpeta Drive para usarlos como contexto.</div>
+        <button onclick="handleDriveBtn()" style="padding:9px 22px;border-radius:8px;background:#185FA5;color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:500;">📁 Cargar documentos Drive</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="footer">Asistente basado en legislación y resoluciones de Registro Civil español · DGRN / DGSJFP</div>
+
+<script>
+const BRIDGE_URL = "https://script.google.com/macros/s/AKfycbycZNB3HJLkVg8z17NNeyd8WlItyOtaGrG75-XNiPTW_2EWIk5XdBvkQf59RznPE3X5/exec";
+
+let mode = "chat";
+let connected = false;
+let files = [];
+let selectedDocs = [];
+let messages = [{ role:"assistant", content:"Hola. Soy el asistente jurídico de Registro Civil. Puedes preguntarme sobre legislación, resoluciones de la DGRN/DGSJFP, procedimientos, inscripciones, nacionalidad, filiación, matrimonio y cualquier materia de Registro Civil.\n\nPulsa «Cargar documentos» para conectar tu carpeta de Drive y usarla como contexto adicional en tus consultas." }];
+let loading = false;
+
+function setMode(m) {
+  mode = m;
+  ["chat","search","drive"].forEach(id => {
+    document.getElementById("panel-"+id).style.display = "none";
+    document.getElementById("btn-"+id).classList.remove("active");
+  });
+  document.getElementById("panel-"+m).style.display = m==="chat" ? "flex" : "block";
+  if (m==="chat") document.getElementById("panel-chat").style.flexDirection = "column";
+  document.getElementById("btn-"+m).classList.add("active");
+  updateContextBar();
+}
+
+function updateContextBar() {
+  const bar = document.getElementById("context-bar");
+  const names = files.filter(f=>selectedDocs.includes(f.id)).map(f=>f.name);
+  if (names.length && mode !== "drive") {
+    bar.style.display = "block";
+    bar.textContent = "📚 Contexto activo: " + names.join(" · ");
+  } else {
+    bar.style.display = "none";
+  }
+}
+
+function renderMessages() {
+  const el = document.getElementById("messages");
+  el.innerHTML = messages.map(m => `
+    <div class="bubble-wrap ${m.role}">
+      ${m.role==="assistant" ? '<div class="avatar">⚖️</div>' : ''}
+      <div class="bubble ${m.role}">${m.content.replace(/</g,"&lt;")}</div>
+    </div>
+  `).join("");
+  if (loading) {
+    el.innerHTML += `<div class="typing"><div class="avatar">⚖️</div><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+  }
+  el.scrollTop = el.scrollHeight;
+}
+
+async function handleDriveBtn() {
+  if (connected) {
+    connected = false; files = []; selectedDocs = [];
+    document.getElementById("driveBtn").textContent = "📁 Cargar documentos";
+    document.getElementById("driveBtn").className = "connect-btn";
+    document.getElementById("driveContent").innerHTML = `<div style="text-align:center;padding:32px;color:#888;"><div style="font-size:40px;margin-bottom:12px;">📁</div><div style="font-size:14px;margin-bottom:16px;">Carga los documentos de tu carpeta Drive.</div><button onclick="handleDriveBtn()" style="padding:9px 22px;border-radius:8px;background:#185FA5;color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:500;">📁 Cargar documentos Drive</button></div>`;
+    updateContextBar(); return;
+  }
+  connected = true;
+  setMode("drive");
+  document.getElementById("driveContent").innerHTML = "<div style='padding:24px;color:#888;font-size:14px;'>⏳ Conectando con Drive…</div>";
+  try {
+    const r = await fetch(BRIDGE_URL + "?action=list");
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    files = d.files || [];
+    document.getElementById("driveBtn").textContent = "🔓 Desconectar Drive";
+    document.getElementById("driveBtn").className = "disconnect-btn";
+    renderFiles();
+  } catch(e) {
+    document.getElementById("driveContent").innerHTML = `<div style='padding:24px;color:#c00;font-size:13px;'>❌ Error al leer la carpeta: ${e.message}</div>`;
+  }
+}
+
+function renderFiles() {
+  const sel = selectedDocs.length;
+  let html = `<div style="font-size:12px;color:#888;margin-bottom:12px;">${files.length} archivo${files.length!==1?"s":""} encontrado${files.length!==1?"s":""}. Haz clic para seleccionar como contexto.</div>`;
+  if (sel) html += `<div style="margin-bottom:12px;padding:8px 12px;background:#e8f5e9;border-radius:8px;font-size:12px;color:#2e7d32;">✅ ${sel} documento${sel!==1?"s":""} seleccionado${sel!==1?"s":""}</div>`;
+  html += files.map(f => {
+    const icon = f.mimeType==="application/pdf"?"📄":f.mimeType?.includes("document")?"📝":f.mimeType?.includes("video")?"🎬":"📎";
+    const checked = selectedDocs.includes(f.id);
+    return `<div class="file-item${checked?" selected":""}" onclick="toggleDoc('${f.id}')">
+      <span style="font-size:20px">${icon}</span>
+      <div style="flex:1;min-width:0;">
+        <div class="file-name">${f.name}</div>
+        <div class="file-type">${f.mimeType?.split("/").pop()?.replace("vnd.google-apps.","")}</div>
+      </div>
+      <div class="checkbox${checked?" checked":""}">${checked?"✓":""}</div>
+    </div>`;
+  }).join("");
+  document.getElementById("driveContent").innerHTML = html;
+  updateContextBar();
+}
+
+function toggleDoc(id) {
+  selectedDocs = selectedDocs.includes(id) ? selectedDocs.filter(d=>d!==id) : [...selectedDocs, id];
+  renderFiles();
+  updateContextBar();
+}
+
+async function callBridge(msgs) {
+  const params = new URLSearchParams({ action:"chat", messages: JSON.stringify(msgs), docIds: JSON.stringify(selectedDocs) });
+  const r = await fetch(BRIDGE_URL + "?" + params.toString());
+  const d = await r.json();
+  if (d.error) throw new Error(d.error);
+  return d.reply || "Sin respuesta.";
+}
+
+async function sendMessage() {
+  const input = document.getElementById("chatInput");
+  const text = input.value.trim();
+  if (!text || loading) return;
+  messages.push({ role:"user", content:text });
+  input.value = "";
+  loading = true;
+  renderMessages();
+  try {
+    const reply = await callBridge(messages);
+    messages.push({ role:"assistant", content:reply });
+  } catch(e) {
+    messages.push({ role:"assistant", content:"Error: " + e.message });
+  }
+  loading = false;
+  renderMessages();
+}
+
+function handleChatKey(e) { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+
+async function runSearch() {
+  const input = document.getElementById("searchInput");
+  const q = input.value.trim();
+  if (!q || loading) return;
+  loading = true;
+  document.getElementById("searchResult").innerHTML = "<div style='padding:16px;color:#888;'>⏳ Consultando…</div>";
+  try {
+    const reply = await callBridge([{ role:"user", content:q }]);
+    document.getElementById("searchResult").innerHTML = `
+      <div style="padding:16px;background:#fff;border:0.5px solid #e0e0e0;border-radius:12px;">
+        <div style="font-size:12px;color:#666;margin-bottom:8px;">🔍 Consulta: <strong>${q}</strong></div>
+        <div style="font-size:14px;line-height:1.7;white-space:pre-wrap;color:#1a1a1a;">${reply.replace(/</g,"&lt;")}</div>
+      </div>`;
+  } catch(e) {
+    document.getElementById("searchResult").innerHTML = `<div style='color:#c00;'>Error: ${e.message}</div>`;
+  }
+  loading = false;
+}
+
+function handleSearchKey(e) { if (e.key==="Enter" && e.ctrlKey) runSearch(); }
+
+renderMessages();
+</script>
+</body>
+</html>
