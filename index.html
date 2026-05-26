@@ -114,9 +114,22 @@
 const PROXY_URL = "https://funcionarios-rc-proxy.rcscpalma.workers.dev";
 const BRIDGE_URL = "https://script.google.com/macros/s/AKfycby1t6ZOFVdXhlwXHFuUkmfoSJFsJ-SwD40HmO-k7CgCKdfyPUGTj69ZqxoVy8zm2Ukp/exec";
 
-function proxyFetch(bridgeParams) {
-  const target = encodeURIComponent(BRIDGE_URL + "?" + bridgeParams);
-  return fetch(PROXY_URL + "?url=" + target).then(r => r.json());
+async function proxyFetch(params) {
+  // Lista usa GET, chat usa POST para soportar payloads grandes
+  if (params.action === "list") {
+    const target = encodeURIComponent(BRIDGE_URL + "?action=list");
+    const r = await fetch(PROXY_URL + "?url=" + target);
+    return r.json();
+  } else {
+    // POST a través del proxy
+    const target = encodeURIComponent(BRIDGE_URL);
+    const r = await fetch(PROXY_URL + "?url=" + target, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params)
+    });
+    return r.json();
+  }
 }
 
 let mode = "chat";
@@ -175,7 +188,7 @@ async function handleDriveBtn() {
   setMode("drive");
   document.getElementById("driveContent").innerHTML = "<div style='padding:24px;color:#888;font-size:14px;'>⏳ Conectando con Drive…</div>";
   try {
-    const d = await proxyFetch("action=list");
+    const d = await proxyFetch({ action: "list" });
     if (d.error) throw new Error(d.error);
     files = d.files || [];
     document.getElementById("driveBtn").textContent = "🔓 Desconectar Drive";
@@ -213,12 +226,11 @@ function toggleDoc(id) {
 }
 
 async function callBridge(msgs) {
-  const params = new URLSearchParams({
+  const d = await proxyFetch({
     action: "chat",
     messages: JSON.stringify(msgs),
     docIds: JSON.stringify(selectedDocs)
   });
-  const d = await proxyFetch(params.toString());
   if (d.error) throw new Error(d.error);
   return d.reply || "Sin respuesta.";
 }
