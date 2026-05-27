@@ -179,7 +179,26 @@ const ADMIN_EMAIL = "rcscpalma@gmail.com";
 let currentUser = null, mode = "chat", files = [], selectedDocs = [], messages = [], loading = false;
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
+const SESSION_KEY = "frc_session";
+const SESSION_TTL = 60 * 60 * 1000; // 1 hora en ms
+
 window.onload = () => {
+  // Intentar restaurar sesión guardada
+  try {
+    const saved = localStorage.getItem(SESSION_KEY);
+    if (saved) {
+      const session = JSON.parse(saved);
+      if (Date.now() < session.expires) {
+        currentUser = session.user;
+        showApp();
+        return;
+      } else {
+        localStorage.removeItem(SESSION_KEY);
+      }
+    }
+  } catch(e) {}
+
+  // No hay sesión válida — mostrar login
   google.accounts.id.initialize({ client_id: CLIENT_ID, callback: handleCredential, auto_select: false });
   google.accounts.id.renderButton(document.getElementById("googleBtn"), { theme: "outline", size: "large", text: "signin_with", locale: "es" });
 };
@@ -187,6 +206,8 @@ window.onload = () => {
 function handleCredential(resp) {
   const p = parseJwt(resp.credential);
   currentUser = { email: p.email, name: p.name, picture: p.picture };
+  // Guardar sesión con expiración de 1 hora
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ user: currentUser, expires: Date.now() + SESSION_TTL }));
   showApp();
 }
 
@@ -211,10 +232,12 @@ function showApp() {
 
 function logout() {
   currentUser = null;
+  localStorage.removeItem(SESSION_KEY);
   document.getElementById("loginPanel").style.display = "flex";
   document.getElementById("mainApp").style.display = "none";
   document.getElementById("userBadge").style.display = "none";
-  google.accounts.id.disableAutoSelect();
+  google.accounts.id.initialize({ client_id: CLIENT_ID, callback: handleCredential, auto_select: false });
+  google.accounts.id.renderButton(document.getElementById("googleBtn"), { theme: "outline", size: "large", text: "signin_with", locale: "es" });
 }
 
 // ── PROXY ─────────────────────────────────────────────────────────────────────
