@@ -5,16 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Funcionarios RC</title>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg viewBox='0 0 120 100' xmlns='http://www.w3.org/2000/svg'><circle cx='60' cy='22' r='14' fill='%232196F3'/><path d='M38 75 Q38 50 60 50 Q82 50 82 75 L82 90 L38 90 Z' fill='%232196F3'/><circle cx='28' cy='30' r='11' fill='%23F44336'/><path d='M8 85 Q8 62 28 62 Q38 62 44 70 L38 75 Q34 68 28 68 Q14 68 14 85 Z' fill='%23F44336'/><circle cx='92' cy='30' r='11' fill='%234CAF50'/><path d='M112 85 Q112 62 92 62 Q82 62 76 70 L82 75 Q86 68 92 68 Q106 68 106 85 Z' fill='%234CAF50'/><rect x='48' y='60' width='10' height='30' rx='3' fill='%23FF9800'/><rect x='62' y='55' width='10' height='35' rx='3' fill='%239C27B0'/><rect x='76' y='62' width='9' height='28' rx='3' fill='%23FFEB3B'/><rect x='35' y='64' width='9' height='26' rx='3' fill='%23F44336'/></svg>">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; height: 100vh; display: flex; flex-direction: column; }
     #app { background: #fff; border-radius: 12px; margin: 10px; border: 0.5px solid #e0e0e0; display: flex; flex-direction: column; flex: 1; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-    .header { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 0.5px solid #e0e0e0; }
+    .header { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 0.5px solid #e0e0e0; flex-wrap: wrap; }
     .logo { width: 48px; height: 48px; border-radius: 10px; background: #E6F1FB; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .header-title { flex: 1; }
     .header-title h1 { font-size: 16px; font-weight: 600; color: #1a1a1a; }
     .header-title p { font-size: 11px; color: #888; margin-top: 1px; }
+    .user-badge { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #555; }
+    .user-badge img { width: 28px; height: 28px; border-radius: 50%; }
+    .logout-btn { font-size: 11px; padding: 3px 8px; border-radius: 5px; border: 1px solid #ddd; background: #fff; cursor: pointer; color: #666; }
+    .my-usage { font-size: 11px; padding: 3px 8px; border-radius: 5px; background: #E6F1FB; color: #185FA5; }
     .mode-bar { display: flex; gap: 6px; padding: 9px 16px; border-bottom: 0.5px solid #e0e0e0; background: #f8f9fa; flex-wrap: wrap; align-items: center; }
     .mode-btn { padding: 5px 13px; font-size: 13px; border-radius: 7px; border: 1px solid #ddd; background: transparent; color: #666; cursor: pointer; }
     .mode-btn.active { border: 1.5px solid #185FA5; background: #E6F1FB; color: #185FA5; font-weight: 500; }
@@ -50,9 +55,6 @@
     #loginPanel { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 32px; gap: 20px; }
     #loginPanel h2 { font-size: 20px; font-weight: 600; color: #1a1a1a; }
     #loginPanel p { font-size: 14px; color: #666; text-align: center; max-width: 300px; }
-    .user-badge { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #555; }
-    .user-badge img { width: 28px; height: 28px; border-radius: 50%; }
-    .logout-btn { font-size: 11px; padding: 3px 8px; border-radius: 5px; border: 1px solid #ddd; background: #fff; cursor: pointer; color: #666; }
     .admin-panel { padding: 20px; }
     .admin-panel h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
     .admin-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
@@ -60,10 +62,24 @@
     .admin-card p { font-size: 13px; color: #666; margin-bottom: 10px; }
     .btn-primary { padding: 8px 18px; background: #185FA5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; }
     .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-secondary { padding: 6px 14px; background: #f8f9fa; color: #555; border: 1px solid #ddd; border-radius: 7px; cursor: pointer; font-size: 12px; }
     .status-msg { font-size: 12px; margin-top: 8px; padding: 6px 10px; border-radius: 6px; }
     .status-ok { background: #e8f5e9; color: #2e7d32; }
     .status-err { background: #ffebee; color: #c62828; }
     .status-info { background: #E6F1FB; color: #185FA5; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .stat-box { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; text-align: center; }
+    .stat-box .val { font-size: 22px; font-weight: 700; color: #185FA5; }
+    .stat-box .lbl { font-size: 11px; color: #888; margin-top: 2px; }
+    .chart-wrap { position: relative; height: 200px; margin: 12px 0; }
+    .user-search { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; margin-bottom: 10px; outline: none; }
+    .user-list { max-height: 200px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; background: #fff; }
+    .user-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 0.5px solid #f0f0f0; cursor: pointer; font-size: 13px; }
+    .user-row:hover { background: #f8f9fa; }
+    .user-row .email { color: #555; font-size: 11px; }
+    .tab-bar { display: flex; gap: 4px; margin-bottom: 12px; }
+    .tab { padding: 5px 12px; border-radius: 6px; border: 1px solid #ddd; background: transparent; font-size: 12px; cursor: pointer; color: #666; }
+    .tab.active { background: #E6F1FB; border-color: #185FA5; color: #185FA5; font-weight: 500; }
   </style>
 </head>
 <body>
@@ -90,6 +106,7 @@
     <div id="userBadge" style="display:none" class="user-badge">
       <img id="userAvatar" src="" alt=""/>
       <span id="userName"></span>
+      <span id="myUsageBadge" class="my-usage" style="display:none"></span>
       <button class="logout-btn" onclick="logout()">Salir</button>
     </div>
   </div>
@@ -147,23 +164,57 @@
     <div id="panel-admin" class="panel" style="display:none;">
       <div class="admin-panel">
         <h2>⚙️ Panel de Administración</h2>
-        <div class="admin-card">
-          <h3>📇 Actualizar índice de documentos</h3>
-          <p>Indexa todos los documentos de Drive. Solo se procesan los nuevos o modificados.</p>
-          <button class="btn-primary" onclick="runIndex()" id="indexBtn">🔄 Actualizar índice ahora</button>
-          <div id="indexStatus"></div>
+
+        <!-- Tabs -->
+        <div class="tab-bar">
+          <button class="tab active" onclick="showAdminTab('sistema')">🗂 Sistema</button>
+          <button class="tab" onclick="showAdminTab('consumo')">📊 Consumo</button>
+          <button class="tab" onclick="showAdminTab('usuarios')">👥 Usuarios</button>
         </div>
-        <div class="admin-card">
-          <h3>⏰ Actualización automática semanal</h3>
-          <p>Activa un trigger que actualiza el índice cada lunes a las 3:00 AM automáticamente.</p>
-          <button class="btn-primary" onclick="setupTrigger()" id="triggerBtn">✅ Activar actualización semanal</button>
-          <div id="triggerStatus"></div>
+
+        <!-- Tab Sistema -->
+        <div id="tab-sistema">
+          <div class="admin-card">
+            <h3>📇 Actualizar índice de documentos</h3>
+            <p>Indexa todos los documentos de Drive. Solo se procesan los nuevos o modificados.</p>
+            <button class="btn-primary" onclick="runIndex()" id="indexBtn">🔄 Actualizar índice ahora</button>
+            <div id="indexStatus"></div>
+          </div>
+          <div class="admin-card">
+            <h3>⏰ Actualización automática semanal</h3>
+            <p>Activa un trigger que actualiza el índice cada lunes a las 3:00 AM automáticamente.</p>
+            <button class="btn-primary" onclick="setupTrigger()" id="triggerBtn">✅ Activar actualización semanal</button>
+            <div id="triggerStatus"></div>
+          </div>
+          <div class="admin-card">
+            <h3>📊 Estado del índice</h3>
+            <button class="btn-primary" onclick="checkIndex()">Ver estado</button>
+            <div id="indexInfo" style="margin-top:8px;font-size:13px;color:#555;"></div>
+          </div>
         </div>
-        <div class="admin-card">
-          <h3>📊 Estado del índice</h3>
-          <button class="btn-primary" onclick="checkIndex()">Ver estado</button>
-          <div id="indexInfo" style="margin-top:8px;font-size:13px;color:#555;"></div>
+
+        <!-- Tab Consumo -->
+        <div id="tab-consumo" style="display:none;">
+          <div class="admin-card">
+            <h3>📊 Consumo total</h3>
+            <button class="btn-primary" onclick="loadConsumoTotal()" style="margin-bottom:12px;">🔄 Actualizar</button>
+            <div id="consumoTotalStats"></div>
+            <div class="chart-wrap"><canvas id="chartDiario"></canvas></div>
+            <button class="btn-secondary" onclick="toggleChartDiario()">📈 Ver/ocultar gráfica</button>
+          </div>
         </div>
+
+        <!-- Tab Usuarios -->
+        <div id="tab-usuarios" style="display:none;">
+          <div class="admin-card">
+            <h3>👥 Buscar usuario</h3>
+            <input type="text" class="user-search" id="userSearchInput" placeholder="Escribe email o nombre…" oninput="filterUsers()" />
+            <div class="user-list" id="userList"></div>
+            <div id="userDetail" style="margin-top:12px;"></div>
+            <div class="chart-wrap" style="display:none;" id="chartUserWrap"><canvas id="chartUsuario"></canvas></div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -175,30 +226,23 @@ const PROXY_URL = "https://funcionarios-rc-proxy.rcscpalma.workers.dev";
 const BRIDGE_URL = "https://script.google.com/macros/s/AKfycby1t6ZOFVdXhlwXHFuUkmfoSJFsJ-SwD40HmO-k7CgCKdfyPUGTj69ZqxoVy8zm2Ukp/exec";
 const CLIENT_ID = "420403850972-gcihihnpd7717sge054nan31be2kpnh9.apps.googleusercontent.com";
 const ADMIN_EMAIL = "rcscpalma@gmail.com";
+const SESSION_KEY = "frc_session";
+const SESSION_TTL = 60 * 60 * 1000;
 
 let currentUser = null, mode = "chat", files = [], selectedDocs = [], messages = [], loading = false;
+let chartDiarioInst = null, chartUsuarioInst = null;
+let allUsuarios = [];
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
-const SESSION_KEY = "frc_session";
-const SESSION_TTL = 60 * 60 * 1000; // 1 hora en ms
-
 window.onload = () => {
-  // Intentar restaurar sesión guardada
   try {
     const saved = localStorage.getItem(SESSION_KEY);
     if (saved) {
       const session = JSON.parse(saved);
-      if (Date.now() < session.expires) {
-        currentUser = session.user;
-        showApp();
-        return;
-      } else {
-        localStorage.removeItem(SESSION_KEY);
-      }
+      if (Date.now() < session.expires) { currentUser = session.user; showApp(); return; }
+      localStorage.removeItem(SESSION_KEY);
     }
   } catch(e) {}
-
-  // No hay sesión válida — mostrar login
   google.accounts.id.initialize({ client_id: CLIENT_ID, callback: handleCredential, auto_select: false });
   google.accounts.id.renderButton(document.getElementById("googleBtn"), { theme: "outline", size: "large", text: "signin_with", locale: "es" });
 };
@@ -206,7 +250,6 @@ window.onload = () => {
 function handleCredential(resp) {
   const p = parseJwt(resp.credential);
   currentUser = { email: p.email, name: p.name, picture: p.picture };
-  // Guardar sesión con expiración de 1 hora
   localStorage.setItem(SESSION_KEY, JSON.stringify({ user: currentUser, expires: Date.now() + SESSION_TTL }));
   showApp();
 }
@@ -218,16 +261,16 @@ function parseJwt(token) {
 function showApp() {
   document.getElementById("loginPanel").style.display = "none";
   const main = document.getElementById("mainApp");
-  main.style.display = "flex";
-  main.style.flexDirection = "column";
+  main.style.display = "flex"; main.style.flexDirection = "column";
   document.getElementById("userBadge").style.display = "flex";
   document.getElementById("userAvatar").src = currentUser.picture;
   document.getElementById("userName").textContent = currentUser.name;
   if (currentUser.email === ADMIN_EMAIL) document.getElementById("btn-admin").style.display = "block";
-  messages = [{ role:"assistant", content:`Hola, ${currentUser.name.split(" ")[0]}. Soy el asistente jurídico de Registro Civil.\n\nPuedes preguntarme sobre legislación, resoluciones de la DGRN/DGSJFP, procedimientos, inscripciones, nacionalidad, filiación, matrimonio y cualquier materia de Registro Civil.\n\nLa búsqueda en documentos es automática — selecciono los más relevantes para cada consulta. También puedes ir a «Documentos» para fijar archivos específicos.` }];
+  messages = [{ role:"assistant", content:`Hola, ${currentUser.name.split(" ")[0]}. Soy el asistente jurídico de Registro Civil.\n\nPuedes preguntarme sobre legislación, resoluciones de la DGRN/DGSJFP, procedimientos, inscripciones, nacionalidad, filiación, matrimonio y cualquier materia de Registro Civil.\n\nLa búsqueda en documentos es automática — selecciono los más relevantes para cada consulta.` }];
   renderMessages();
   loadFiles();
   updateContextBar();
+  loadMiConsumo();
 }
 
 function logout() {
@@ -242,8 +285,9 @@ function logout() {
 
 // ── PROXY ─────────────────────────────────────────────────────────────────────
 async function proxyFetch(params) {
-  if (params.action === "list" || params.action === "indexInfo") {
-    const target = encodeURIComponent(BRIDGE_URL + "?action=" + params.action);
+  if (["list","indexInfo","consumoTotal","consumoDiario"].includes(params.action) || params.action === "consumoUsuario" || params.action === "miConsumo") {
+    const qs = new URLSearchParams(params).toString();
+    const target = encodeURIComponent(BRIDGE_URL + "?" + qs);
     const r = await fetch(PROXY_URL + "?url=" + target);
     return r.json();
   }
@@ -266,9 +310,10 @@ function setMode(m) {
     if (b) b.classList.remove("active");
   });
   const panel = document.getElementById("panel-"+m);
-  if (panel) { panel.style.display = m === "chat" ? "flex" : "block"; if (m==="chat") panel.style.flexDirection = "column"; }
+  if (panel) { panel.style.display = m==="chat"?"flex":"block"; if (m==="chat") panel.style.flexDirection="column"; }
   document.getElementById("btn-"+m)?.classList.add("active");
   updateContextBar();
+  if (m === "admin") { showAdminTab("sistema"); }
 }
 
 function updateContextBar() {
@@ -276,22 +321,18 @@ function updateContextBar() {
   if (!bar) return;
   const names = files.filter(f => selectedDocs.includes(f.id)).map(f => f.name.split(" / ").pop());
   if (names.length && mode !== "drive") {
-    bar.style.display = "block";
-    bar.style.background = "#e8f5e9"; bar.style.borderColor = "#c8e6c9"; bar.style.color = "#2e7d32";
+    bar.style.display="block"; bar.style.background="#e8f5e9"; bar.style.borderColor="#c8e6c9"; bar.style.color="#2e7d32";
     bar.textContent = "📌 Contexto fijo: " + names.join(" · ");
   } else if (mode !== "drive") {
-    bar.style.display = "block";
-    bar.style.background = "#E6F1FB"; bar.style.borderColor = "#90CAF9"; bar.style.color = "#185FA5";
+    bar.style.display="block"; bar.style.background="#E6F1FB"; bar.style.borderColor="#90CAF9"; bar.style.color="#185FA5";
     bar.textContent = "🔍 Modo automático: selecciono los documentos más relevantes para cada consulta";
-  } else {
-    bar.style.display = "none";
-  }
+  } else { bar.style.display="none"; }
 }
 
 // ── ARCHIVOS ──────────────────────────────────────────────────────────────────
 async function loadFiles() {
   try {
-    const d = await proxyFetch({ action: "list" });
+    const d = await proxyFetch({ action:"list" });
     if (d.error) throw new Error(d.error);
     files = d.files || [];
     renderFiles();
@@ -302,7 +343,7 @@ async function loadFiles() {
 
 function renderFiles() {
   const sel = selectedDocs.length;
-  let html = `<div style="font-size:12px;color:#888;margin-bottom:12px;">${files.length} archivos · ${sel ? `<strong style="color:#185FA5">${sel} seleccionados</strong>` : "ninguno seleccionado (modo automático)"}</div>`;
+  let html = `<div style="font-size:12px;color:#888;margin-bottom:12px;">${files.length} archivos · ${sel?`<strong style="color:#185FA5">${sel} seleccionados</strong>`:"ninguno (modo automático)"}</div>`;
   if (sel) html += `<button onclick="clearSelection()" style="margin-bottom:12px;padding:4px 12px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer;font-size:12px;">✕ Limpiar selección</button><br>`;
   html += files.map(f => {
     const icon = f.mimeType==="application/pdf"?"📄":f.mimeType?.includes("document")?"📝":"📎";
@@ -311,10 +352,7 @@ function renderFiles() {
     const folder = f.name.includes(" / ") ? f.name.split(" / ").slice(0,-1).join(" / ") : "";
     return `<div class="file-item${checked?" selected":""}" onclick="toggleDoc('${f.id}')">
       <span style="font-size:18px">${icon}</span>
-      <div style="flex:1;min-width:0;">
-        <div class="file-name">${shortName}</div>
-        ${folder?`<div class="file-type">${folder}</div>`:""}
-      </div>
+      <div style="flex:1;min-width:0;"><div class="file-name">${shortName}</div>${folder?`<div class="file-type">${folder}</div>`:""}</div>
       <div class="checkbox${checked?" checked":""}">${checked?"✓":""}</div>
     </div>`;
   }).join("");
@@ -322,12 +360,8 @@ function renderFiles() {
   updateContextBar();
 }
 
-function toggleDoc(id) {
-  selectedDocs = selectedDocs.includes(id) ? selectedDocs.filter(d=>d!==id) : [...selectedDocs,id];
-  renderFiles(); updateContextBar();
-}
-
-function clearSelection() { selectedDocs = []; renderFiles(); updateContextBar(); }
+function toggleDoc(id) { selectedDocs = selectedDocs.includes(id)?selectedDocs.filter(d=>d!==id):[...selectedDocs,id]; renderFiles(); updateContextBar(); }
+function clearSelection() { selectedDocs=[]; renderFiles(); updateContextBar(); }
 
 // ── MENSAJES ──────────────────────────────────────────────────────────────────
 function renderMessages() {
@@ -345,7 +379,13 @@ function renderMessages() {
 }
 
 async function callBridge(msgs) {
-  const d = await proxyFetch({ action:"chat", messages:JSON.stringify(msgs), docIds:JSON.stringify(selectedDocs) });
+  const d = await proxyFetch({
+    action:"chat",
+    messages: JSON.stringify(msgs),
+    docIds: JSON.stringify(selectedDocs),
+    email: currentUser?.email || "anónimo",
+    nombre: currentUser?.name || "Usuario"
+  });
   if (d.error) throw new Error(d.error);
   return d;
 }
@@ -353,25 +393,24 @@ async function callBridge(msgs) {
 async function sendMessage() {
   const input = document.getElementById("chatInput");
   const text = input.value.trim();
-  if (!text || loading) return;
+  if (!text||loading) return;
   messages.push({ role:"user", content:text });
-  input.value = ""; loading = true; renderMessages();
+  input.value=""; loading=true; renderMessages();
   try {
     const result = await callBridge(messages);
     messages.push({ role:"assistant", content:result.reply, docsUsados:result.docsUsados });
-  } catch(e) {
-    messages.push({ role:"assistant", content:"Error: "+e.message });
-  }
-  loading = false; renderMessages();
+    loadMiConsumo(); // actualizar badge
+  } catch(e) { messages.push({ role:"assistant", content:"Error: "+e.message }); }
+  loading=false; renderMessages();
 }
 
-function handleChatKey(e) { if (e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} }
+function handleChatKey(e) { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} }
 
 async function runSearch() {
   const input = document.getElementById("searchInput");
   const q = input.value.trim();
   if (!q||loading) return;
-  loading = true;
+  loading=true;
   document.getElementById("searchResult").innerHTML = "<div style='padding:16px;color:#888;'>⏳ Consultando documentos…</div>";
   try {
     const result = await callBridge([{role:"user",content:q}]);
@@ -381,55 +420,178 @@ async function runSearch() {
         <div style="font-size:14px;line-height:1.7;white-space:pre-wrap;color:#1a1a1a;">${result.reply.replace(/</g,"&lt;")}</div>
         ${result.docsUsados?`<div class="docs-used" style="margin-top:10px;">📚 ${result.docsUsados}</div>`:""}
       </div>`;
-  } catch(e) {
-    document.getElementById("searchResult").innerHTML = `<div style='color:#c00;'>Error: ${e.message}</div>`;
-  }
-  loading = false;
+    loadMiConsumo();
+  } catch(e) { document.getElementById("searchResult").innerHTML=`<div style='color:#c00;'>Error: ${e.message}</div>`; }
+  loading=false;
 }
 
-function handleSearchKey(e) { if (e.key==="Enter"&&e.ctrlKey) runSearch(); }
+function handleSearchKey(e) { if(e.key==="Enter"&&e.ctrlKey) runSearch(); }
 
-// ── ADMIN ─────────────────────────────────────────────────────────────────────
+// ── MI CONSUMO (badge) ────────────────────────────────────────────────────────
+async function loadMiConsumo() {
+  if (!currentUser) return;
+  try {
+    const d = await proxyFetch({ action:"miConsumo", email: currentUser.email });
+    if (d.error) return;
+    const badge = document.getElementById("myUsageBadge");
+    badge.style.display = "inline";
+    badge.textContent = `${d.consultas} consultas · $${d.coste}`;
+  } catch(e) {}
+}
+
+// ── ADMIN TABS ────────────────────────────────────────────────────────────────
+function showAdminTab(tab) {
+  ["sistema","consumo","usuarios"].forEach(t => {
+    document.getElementById("tab-"+t).style.display = "none";
+  });
+  document.getElementById("tab-"+tab).style.display = "block";
+  document.querySelectorAll(".tab").forEach((b,i) => {
+    b.classList.toggle("active", ["sistema","consumo","usuarios"][i] === tab);
+  });
+  if (tab === "consumo") loadConsumoTotal();
+  if (tab === "usuarios") loadUsuarios();
+}
+
+// ── ADMIN SISTEMA ─────────────────────────────────────────────────────────────
 async function runIndex() {
   const btn = document.getElementById("indexBtn");
   const status = document.getElementById("indexStatus");
-  btn.disabled = true;
-  status.innerHTML = `<div class="status-msg status-info">⏳ Indexando… esto puede tardar varios minutos.</div>`;
+  btn.disabled=true;
+  status.innerHTML=`<div class="status-msg status-info">⏳ Indexando… esto puede tardar varios minutos.</div>`;
   try {
     const d = await proxyFetch({ action:"index" });
     if (d.error) throw new Error(d.error);
-    status.innerHTML = `<div class="status-msg status-ok">✅ Indexados ${d.indexed} archivos.</div>`;
-  } catch(e) {
-    status.innerHTML = `<div class="status-msg status-err">❌ Error: ${e.message}</div>`;
-  }
-  btn.disabled = false;
+    status.innerHTML=`<div class="status-msg status-ok">✅ Indexados ${d.indexed} archivos.</div>`;
+  } catch(e) { status.innerHTML=`<div class="status-msg status-err">❌ Error: ${e.message}</div>`; }
+  btn.disabled=false;
 }
 
 async function setupTrigger() {
-  const btn = document.getElementById("triggerBtn");
-  const status = document.getElementById("triggerStatus");
-  btn.disabled = true;
-  status.innerHTML = `<div class="status-msg status-info">⏳ Configurando…</div>`;
+  const btn=document.getElementById("triggerBtn");
+  const status=document.getElementById("triggerStatus");
+  btn.disabled=true;
+  status.innerHTML=`<div class="status-msg status-info">⏳ Configurando…</div>`;
   try {
     const d = await proxyFetch({ action:"setupTrigger" });
     if (d.error) throw new Error(d.error);
-    status.innerHTML = `<div class="status-msg status-ok">✅ Trigger semanal activado.</div>`;
-  } catch(e) {
-    status.innerHTML = `<div class="status-msg status-err">❌ Error: ${e.message}</div>`;
-  }
-  btn.disabled = false;
+    status.innerHTML=`<div class="status-msg status-ok">✅ Trigger semanal activado.</div>`;
+  } catch(e) { status.innerHTML=`<div class="status-msg status-err">❌ Error: ${e.message}</div>`; }
+  btn.disabled=false;
 }
 
 async function checkIndex() {
-  const info = document.getElementById("indexInfo");
-  info.textContent = "⏳ Consultando…";
+  const info=document.getElementById("indexInfo");
+  info.textContent="⏳ Consultando…";
   try {
     const d = await proxyFetch({ action:"indexInfo" });
     if (d.error) throw new Error(d.error);
-    info.textContent = `📊 ${d.total} documentos indexados · Última actualización: ${d.lastUpdate||"nunca"}`;
-  } catch(e) {
-    info.textContent = "❌ Error: "+e.message;
-  }
+    info.textContent=`📊 ${d.total} documentos indexados · Última actualización: ${d.lastUpdate||"nunca"}`;
+  } catch(e) { info.textContent="❌ Error: "+e.message; }
+}
+
+// ── ADMIN CONSUMO ─────────────────────────────────────────────────────────────
+async function loadConsumoTotal() {
+  const el = document.getElementById("consumoTotalStats");
+  el.innerHTML = "<div style='color:#888;font-size:13px;'>⏳ Cargando…</div>";
+  try {
+    const [total, diario] = await Promise.all([
+      proxyFetch({ action:"consumoTotal" }),
+      proxyFetch({ action:"consumoDiario" })
+    ]);
+    el.innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-box"><div class="val">${total.totalConsultas}</div><div class="lbl">Consultas totales</div></div>
+        <div class="stat-box"><div class="val">$${total.totalCoste}</div><div class="lbl">Coste total</div></div>
+        <div class="stat-box"><div class="val">${(total.totalInput+total.totalOutput).toLocaleString()}</div><div class="lbl">Tokens totales</div></div>
+        <div class="stat-box"><div class="val">${total.usuarios?.length||0}</div><div class="lbl">Usuarios activos</div></div>
+      </div>`;
+    renderChartDiario(diario.dias || []);
+  } catch(e) { el.innerHTML=`<div style='color:#c00;'>❌ ${e.message}</div>`; }
+}
+
+function renderChartDiario(dias) {
+  const ctx = document.getElementById("chartDiario");
+  if (chartDiarioInst) chartDiarioInst.destroy();
+  chartDiarioInst = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: dias.map(d => d.fecha),
+      datasets: [{
+        label: "Consultas por día",
+        data: dias.map(d => d.consultas),
+        backgroundColor: "#185FA5aa",
+        borderColor: "#185FA5",
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
+}
+
+function toggleChartDiario() {
+  const wrap = document.getElementById("chartDiario").parentElement;
+  wrap.style.display = wrap.style.display === "none" ? "block" : "none";
+}
+
+// ── ADMIN USUARIOS ────────────────────────────────────────────────────────────
+async function loadUsuarios() {
+  try {
+    const d = await proxyFetch({ action:"consumoTotal" });
+    allUsuarios = d.usuarios || [];
+    renderUserList(allUsuarios);
+  } catch(e) {}
+}
+
+function renderUserList(list) {
+  const el = document.getElementById("userList");
+  if (!list.length) { el.innerHTML=`<div style='padding:12px;color:#888;font-size:13px;'>No hay datos de usuarios aún.</div>`; return; }
+  el.innerHTML = list.map(u => `
+    <div class="user-row" onclick="loadUserDetail('${u.email}')">
+      <div><div style="font-weight:500">${u.nombre||u.email}</div><div class="email">${u.email}</div></div>
+      <div style="text-align:right"><div style="font-weight:600;color:#185FA5">${u.consultas}</div><div class="email">consultas</div></div>
+    </div>`).join("");
+}
+
+function filterUsers() {
+  const q = document.getElementById("userSearchInput").value.toLowerCase();
+  const filtered = allUsuarios.filter(u => u.email.toLowerCase().includes(q) || (u.nombre||"").toLowerCase().includes(q));
+  renderUserList(filtered);
+}
+
+async function loadUserDetail(email) {
+  const el = document.getElementById("userDetail");
+  el.innerHTML = "<div style='color:#888;font-size:13px;'>⏳ Cargando…</div>";
+  try {
+    const d = await proxyFetch({ action:"consumoUsuario", email });
+    el.innerHTML = `
+      <div style="margin-top:8px;padding:12px;background:#f8f9fa;border-radius:8px;font-size:13px;">
+        <strong>${email}</strong><br>
+        ${d.total} consultas totales · $${d.coste} coste acumulado
+      </div>`;
+    renderChartUsuario(d.dias || [], email);
+    document.getElementById("chartUserWrap").style.display = "block";
+  } catch(e) { el.innerHTML=`<div style='color:#c00;'>❌ ${e.message}</div>`; }
+}
+
+function renderChartUsuario(dias, email) {
+  const ctx = document.getElementById("chartUsuario");
+  if (chartUsuarioInst) chartUsuarioInst.destroy();
+  chartUsuarioInst = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: dias.map(d => d.fecha),
+      datasets: [{
+        label: `Consultas de ${email}`,
+        data: dias.map(d => d.consultas),
+        borderColor: "#4CAF50",
+        backgroundColor: "#4CAF5022",
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
 }
 </script>
 </body>
