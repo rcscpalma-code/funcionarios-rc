@@ -130,7 +130,6 @@
   <div id="mainApp" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
     <div class="mode-bar">
       <button class="mode-btn active" id="btn-chat" onclick="setMode('chat')">💬 Chat</button>
-      <button class="mode-btn" id="btn-search" onclick="setMode('search')">🔍 Búsqueda directa</button>
       <button class="mode-btn" id="btn-drive" onclick="setMode('drive')">📁 Documentos</button>
       <button class="mode-btn" id="btn-admin" onclick="setMode('admin')" style="display:none;margin-left:auto;background:#fff3e0;border-color:#FF9800;color:#E65100;">⚙️ Admin</button>
     </div>
@@ -144,14 +143,6 @@
         <textarea id="chatInput" rows="2" style="flex:1" placeholder="Escribe tu consulta… (Enter para enviar, Shift+Enter para nueva línea)" onkeydown="handleChatKey(event)"></textarea>
         <button class="send-btn" onclick="sendMessage()">➤</button>
       </div>
-    </div>
-
-    <!-- Search -->
-    <div id="panel-search" class="panel" style="display:none;padding:24px;">
-      <div style="font-size:13px;color:#666;margin-bottom:16px;">ℹ️ Búsqueda directa con selección automática de documentos relevantes.</div>
-      <textarea id="searchInput" rows="4" style="width:100%" placeholder="Escribe aquí tu consulta sobre Registro Civil…" onkeydown="handleSearchKey(event)"></textarea>
-      <button onclick="runSearch()" style="margin-top:10px;padding:9px 20px;font-size:14px;border-radius:8px;background:#185FA5;color:#fff;border:none;cursor:pointer;font-weight:500;">Consultar ↗</button>
-      <div id="searchResult" style="margin-top:16px;"></div>
     </div>
 
     <!-- Drive -->
@@ -303,7 +294,7 @@ async function proxyFetch(params) {
 // ── MODO ──────────────────────────────────────────────────────────────────────
 function setMode(m) {
   mode = m;
-  ["chat","search","drive","admin"].forEach(id => {
+  ["chat","drive","admin"].forEach(id => {
     const p = document.getElementById("panel-"+id);
     const b = document.getElementById("btn-"+id);
     if (p) p.style.display = "none";
