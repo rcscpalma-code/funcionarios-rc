@@ -435,7 +435,7 @@ async function loadMiConsumo() {
     if (d.error) return;
     const badge = document.getElementById("myUsageBadge");
     badge.style.display = "inline";
-    badge.textContent = `${d.consultas} consultas · ${d.coste}€`;
+    badge.textContent = `${d.consultas} consulta${d.consultas !== 1 ? "s" : ""} · ${d.coste}€`;
   } catch(e) {}
 }
 
