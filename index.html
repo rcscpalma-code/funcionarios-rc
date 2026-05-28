@@ -182,6 +182,12 @@
             <div id="subirStatus"></div>
           </div>
           <div class="admin-card">
+            <h3>🧹 Limpiar índice</h3>
+            <p>Elimina del índice los archivos que ya no existen en Drive.</p>
+            <button class="btn-primary" onclick="limpiarIndice()" id="limpiarBtn">🧹 Limpiar ahora</button>
+            <div id="limpiarStatus"></div>
+          </div>
+          <div class="admin-card">
             <h3>📇 Actualizar índice de documentos</h3>
             <p>Indexa todos los documentos de Drive. Solo se procesan los nuevos o modificados.</p>
             <button class="btn-primary" onclick="runIndex()" id="indexBtn">🔄 Actualizar índice ahora</button>
@@ -593,6 +599,23 @@ function showAdminTab(tab) {
 }
 
 // ── ADMIN SISTEMA ─────────────────────────────────────────────────────────────
+async function limpiarIndice() {
+  const btn = document.getElementById("limpiarBtn");
+  const status = document.getElementById("limpiarStatus");
+  btn.disabled = true;
+  status.innerHTML = `<div class="status-msg status-info">⏳ Verificando archivos…</div>`;
+  try {
+    const d = await proxyFetch({ action:"limpiarIndice" });
+    if (d.error) throw new Error(d.error);
+    status.innerHTML = d.eliminados > 0
+      ? `<div class="status-msg status-ok">✅ Eliminadas ${d.eliminados} entrada${d.eliminados!==1?"s":""} de archivos borrados.</div>`
+      : `<div class="status-msg status-ok">✅ El índice está limpio — no hay entradas huérfanas.</div>`;
+  } catch(e) {
+    status.innerHTML = `<div class="status-msg status-err">❌ Error: ${e.message}</div>`;
+  }
+  btn.disabled = false;
+}
+
 async function runIndex() {
   const btn = document.getElementById("indexBtn");
   const status = document.getElementById("indexStatus");
