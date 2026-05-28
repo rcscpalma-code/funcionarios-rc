@@ -168,6 +168,14 @@
           <div class="admin-card">
             <h3>📤 Subir documento a Drive</h3>
             <p>Sube un archivo directamente a la carpeta de Drive. Se indexará automáticamente.</p>
+            
+            <!-- Selector de carpeta -->
+            <div style="margin-bottom:12px;">
+              <div style="font-size:12px;color:#666;margin-bottom:6px;">📁 Carpeta de destino:</div>
+              <div id="folderBreadcrumb" style="font-size:12px;color:#185FA5;margin-bottom:6px;"></div>
+              <div id="folderList" style="border:1px solid #e0e0e0;border-radius:8px;background:#fff;max-height:180px;overflow-y:auto;"></div>
+            </div>
+
             <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.odt" style="margin-bottom:10px;font-size:13px;"/>
             <br>
             <button class="btn-primary" onclick="subirArchivo()" id="subirBtn">⬆️ Subir archivo</button>
@@ -444,6 +452,77 @@ async function runSearch() {
 
 function handleSearchKey(e) { if(e.key==="Enter"&&e.ctrlKey) runSearch(); }
 
+// ── EXPLORADOR DE CARPETAS ────────────────────────────────────────────────────
+let selectedFolderId = null;
+let folderStack = []; // historial de navegación
+
+async function initFolderExplorer() {
+  folderStack = [];
+  await loadFolder(null);
+}
+
+async function loadFolder(folderId) {
+  const list = document.getElementById("folderList");
+  const breadcrumb = document.getElementById("folderBreadcrumb");
+  list.innerHTML = `<div style="padding:10px;color:#888;font-size:13px;">⏳ Cargando…</div>`;
+
+  try {
+    const d = await proxyFetch({ action:"listFolders", folderId: folderId || "" });
+    if (d.error) throw new Error(d.error);
+
+    selectedFolderId = d.id;
+
+    // Breadcrumb
+    const path = folderStack.map(f => f.name).join(" › ");
+    breadcrumb.textContent = path ? `📁 ${path} › ${d.name}` : `📁 ${d.name} (raíz)`;
+
+    // Listado
+    let html = "";
+    // Botón volver
+    if (folderStack.length > 0) {
+      html += `<div onclick="goBack()" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;color:#185FA5;font-size:13px;">
+        ⬅️ <span>Volver</span>
+      </div>`;
+    }
+    // Opción "guardar aquí"
+    html += `<div onclick="selectFolder('${d.id}','${d.name.replace(/'/g,"\\'")}', true)" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:13px;background:${selectedFolderId===d.id?'#E6F1FB':'#fff'};color:#2e7d32;font-weight:500;">
+      ✅ Guardar aquí (${d.name})
+    </div>`;
+    // Subcarpetas
+    if (d.subfolders.length === 0) {
+      html += `<div style="padding:8px 12px;color:#aaa;font-size:12px;">Sin subcarpetas</div>`;
+    } else {
+      d.subfolders.forEach(sub => {
+        html += `<div onclick="navigateFolder('${sub.id}','${sub.name.replace(/'/g,"\\'")}','${d.id}','${d.name.replace(/'/g,"\\'")}' )" 
+          style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:0.5px solid #f0f0f0;font-size:13px;">
+          <span>📁 ${sub.name}</span>
+          <span style="color:#aaa;font-size:11px;">▶</span>
+        </div>`;
+      });
+    }
+
+    list.innerHTML = html;
+  } catch(e) {
+    list.innerHTML = `<div style="padding:10px;color:#c00;font-size:13px;">❌ ${e.message}</div>`;
+  }
+}
+
+function navigateFolder(id, name, parentId, parentName) {
+  folderStack.push({ id: parentId, name: parentName });
+  loadFolder(id);
+}
+
+function goBack() {
+  const parent = folderStack.pop();
+  if (parent) loadFolder(parent.id);
+}
+
+function selectFolder(id, name, stay) {
+  selectedFolderId = id;
+  document.getElementById("folderBreadcrumb").style.fontWeight = "600";
+  document.getElementById("subirStatus").innerHTML = `<div class="status-msg status-info">📁 Carpeta seleccionada: ${name}</div>`;
+}
+
 // ── SUBIDA DE ARCHIVOS ────────────────────────────────────────────────────────
 async function subirArchivo() {
   const fileInput = document.getElementById("fileInput");
@@ -454,13 +533,16 @@ async function subirArchivo() {
     status.innerHTML = `<div class="status-msg status-err">❌ Selecciona un archivo primero.</div>`;
     return;
   }
+  if (!selectedFolderId) {
+    status.innerHTML = `<div class="status-msg status-err">❌ Selecciona una carpeta de destino primero.</div>`;
+    return;
+  }
 
   const file = fileInput.files[0];
   btn.disabled = true;
   status.innerHTML = `<div class="status-msg status-info">⏳ Subiendo «${file.name}»…</div>`;
 
   try {
-    // Convertir a base64
     const base64 = await new Promise((res, rej) => {
       const reader = new FileReader();
       reader.onload = e => res(e.target.result.split(",")[1]);
@@ -472,11 +554,12 @@ async function subirArchivo() {
       action: "subirArchivo",
       nombre: file.name,
       mimeType: file.type,
-      base64
+      base64,
+      folderId: selectedFolderId
     });
 
     if (d.error) throw new Error(d.error);
-    status.innerHTML = `<div class="status-msg status-ok">✅ «${d.nombre}» subido e indexado correctamente.</div>`;
+    status.innerHTML = `<div class="status-msg status-ok">✅ «${d.nombre}» subido correctamente en «${d.carpeta}».</div>`;
     fileInput.value = "";
   } catch(e) {
     status.innerHTML = `<div class="status-msg status-err">❌ Error: ${e.message}</div>`;
@@ -504,6 +587,7 @@ function showAdminTab(tab) {
   document.querySelectorAll(".tab").forEach((b,i) => {
     b.classList.toggle("active", ["sistema","consumo","usuarios"][i] === tab);
   });
+  if (tab === "sistema") initFolderExplorer();
   if (tab === "consumo") loadConsumoTotal();
   if (tab === "usuarios") loadUsuarios();
 }
