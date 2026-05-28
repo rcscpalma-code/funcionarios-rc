@@ -435,7 +435,7 @@ async function loadMiConsumo() {
     if (d.error) return;
     const badge = document.getElementById("myUsageBadge");
     badge.style.display = "inline";
-    badge.textContent = `${d.consultas} consultas · $${d.coste}`;
+    badge.textContent = `${d.consultas} consultas · ${d.coste}€`;
   } catch(e) {}
 }
 
@@ -501,7 +501,7 @@ async function loadConsumoTotal() {
     el.innerHTML = `
       <div class="stat-grid">
         <div class="stat-box"><div class="val">${total.totalConsultas}</div><div class="lbl">Consultas totales</div></div>
-        <div class="stat-box"><div class="val">$${total.totalCoste}</div><div class="lbl">Coste total</div></div>
+        <div class="stat-box"><div class="val">${total.totalCoste}€</div><div class="lbl">Coste total</div></div>
         <div class="stat-box"><div class="val">${(total.totalInput+total.totalOutput).toLocaleString()}</div><div class="lbl">Tokens totales</div></div>
         <div class="stat-box"><div class="val">${total.usuarios?.length||0}</div><div class="lbl">Usuarios activos</div></div>
       </div>`;
@@ -567,7 +567,7 @@ async function loadUserDetail(email) {
     el.innerHTML = `
       <div style="margin-top:8px;padding:12px;background:#f8f9fa;border-radius:8px;font-size:13px;">
         <strong>${email}</strong><br>
-        ${d.total} consultas totales · $${d.coste} coste acumulado
+        ${d.total} consultas totales · ${d.coste}€ coste acumulado
       </div>`;
     renderChartUsuario(d.dias || [], email);
     document.getElementById("chartUserWrap").style.display = "block";
