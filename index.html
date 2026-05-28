@@ -355,13 +355,29 @@ function toggleDoc(id) { selectedDocs = selectedDocs.includes(id)?selectedDocs.f
 function clearSelection() { selectedDocs=[]; renderFiles(); updateContextBar(); }
 
 // ── MENSAJES ──────────────────────────────────────────────────────────────────
+function renderMarkdown(text) {
+  return text
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+    .replace(/^## (.+)$/gm, "<h2>$1</h2>")
+    .replace(/^# (.+)$/gm, "<h1>$1</h1>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    .replace(/`(.+?)`/g, "<code>$1</code>")
+    .replace(/^[-•] (.+)$/gm, "<li>$1</li>")
+    .replace(/(<li>.*<\/li>)/gs, "<ul>$1</ul>")
+    .replace(/\n{2,}/g, "<br><br>")
+    .replace(/\n/g, "<br>")
+    .replace(/🟢/g, "🟢").replace(/🔴/g, "🔴");
+}
+
 function renderMessages() {
   const el = document.getElementById("messages");
   el.innerHTML = messages.map(m => `
     <div class="bubble-wrap ${m.role}">
       ${m.role==="assistant"?'<div class="avatar">⚖️</div>':""}
       <div>
-        <div class="bubble ${m.role}">${m.content.replace(/</g,"&lt;")}</div>
+        <div class="bubble ${m.role}">${m.role === "assistant" ? renderMarkdown(m.content) : m.content.replace(/</g,"&lt;")}</div>
         ${m.docsUsados?`<div class="docs-used">📚 ${m.docsUsados}</div>`:""}
       </div>
     </div>`).join("");
@@ -370,9 +386,11 @@ function renderMessages() {
 }
 
 async function callBridge(msgs) {
+  // Limpiar campos extra antes de enviar a Claude
+  const cleanMsgs = msgs.map(m => ({ role: m.role, content: m.content }));
   const d = await proxyFetch({
     action:"chat",
-    messages: JSON.stringify(msgs),
+    messages: JSON.stringify(cleanMsgs),
     docIds: JSON.stringify(selectedDocs),
     email: currentUser?.email || "anónimo",
     nombre: currentUser?.name || "Usuario"
