@@ -549,7 +549,7 @@ function renderUserList(list) {
   el.innerHTML = list.map(u => `
     <div class="user-row" onclick="loadUserDetail('${u.email}')">
       <div><div style="font-weight:500">${u.nombre||u.email}</div><div class="email">${u.email}</div></div>
-      <div style="text-align:right"><div style="font-weight:600;color:#185FA5">${u.consultas}</div><div class="email">consultas</div></div>
+      <div style="text-align:right"><div style="font-weight:600;color:#185FA5">${u.consultas}</div><div class="email">consulta${u.consultas !== 1 ? "s" : ""}</div></div>
     </div>`).join("");
 }
 
@@ -567,7 +567,7 @@ async function loadUserDetail(email) {
     el.innerHTML = `
       <div style="margin-top:8px;padding:12px;background:#f8f9fa;border-radius:8px;font-size:13px;">
         <strong>${email}</strong><br>
-        ${d.total} consulta${d.total !== 1 ? "s" : ""} totales · ${d.coste}€ coste acumulado
+        ${d.total} consulta${d.total !== 1 ? "s" : ""} total${d.total !== 1 ? "es" : ""} · ${d.coste}€ coste acumulado
       </div>`;
     renderChartUsuario(d.dias || [], email);
     document.getElementById("chartUserWrap").style.display = "block";
