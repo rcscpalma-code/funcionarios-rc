@@ -166,6 +166,14 @@
         <!-- Tab Sistema -->
         <div id="tab-sistema">
           <div class="admin-card">
+            <h3>📤 Subir documento a Drive</h3>
+            <p>Sube un archivo directamente a la carpeta de Drive. Se indexará automáticamente.</p>
+            <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.odt" style="margin-bottom:10px;font-size:13px;"/>
+            <br>
+            <button class="btn-primary" onclick="subirArchivo()" id="subirBtn">⬆️ Subir archivo</button>
+            <div id="subirStatus"></div>
+          </div>
+          <div class="admin-card">
             <h3>📇 Actualizar índice de documentos</h3>
             <p>Indexa todos los documentos de Drive. Solo se procesan los nuevos o modificados.</p>
             <button class="btn-primary" onclick="runIndex()" id="indexBtn">🔄 Actualizar índice ahora</button>
@@ -436,7 +444,46 @@ async function runSearch() {
 
 function handleSearchKey(e) { if(e.key==="Enter"&&e.ctrlKey) runSearch(); }
 
-// ── MI CONSUMO (badge) ────────────────────────────────────────────────────────
+// ── SUBIDA DE ARCHIVOS ────────────────────────────────────────────────────────
+async function subirArchivo() {
+  const fileInput = document.getElementById("fileInput");
+  const status = document.getElementById("subirStatus");
+  const btn = document.getElementById("subirBtn");
+
+  if (!fileInput.files.length) {
+    status.innerHTML = `<div class="status-msg status-err">❌ Selecciona un archivo primero.</div>`;
+    return;
+  }
+
+  const file = fileInput.files[0];
+  btn.disabled = true;
+  status.innerHTML = `<div class="status-msg status-info">⏳ Subiendo «${file.name}»…</div>`;
+
+  try {
+    // Convertir a base64
+    const base64 = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = e => res(e.target.result.split(",")[1]);
+      reader.onerror = rej;
+      reader.readAsDataURL(file);
+    });
+
+    const d = await proxyFetch({
+      action: "subirArchivo",
+      nombre: file.name,
+      mimeType: file.type,
+      base64
+    });
+
+    if (d.error) throw new Error(d.error);
+    status.innerHTML = `<div class="status-msg status-ok">✅ «${d.nombre}» subido e indexado correctamente.</div>`;
+    fileInput.value = "";
+  } catch(e) {
+    status.innerHTML = `<div class="status-msg status-err">❌ Error: ${e.message}</div>`;
+  }
+  btn.disabled = false;
+}
+
 async function loadMiConsumo() {
   if (!currentUser) return;
   try {
