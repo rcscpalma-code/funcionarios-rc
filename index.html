@@ -559,7 +559,7 @@ async function subirArchivo() {
     });
 
     if (d.error) throw new Error(d.error);
-    status.innerHTML = `<div class="status-msg status-ok">✅ «${d.nombre}» subido correctamente en «${d.carpeta}».</div>`;
+    status.innerHTML = `<div class="status-msg status-ok">✅ «${d.nombre}» subido correctamente en 📁 ${d.carpeta}.</div>`;
     fileInput.value = "";
   } catch(e) {
     status.innerHTML = `<div class="status-msg status-err">❌ Error: ${e.message}</div>`;
