@@ -567,7 +567,7 @@ async function loadUserDetail(email) {
     el.innerHTML = `
       <div style="margin-top:8px;padding:12px;background:#f8f9fa;border-radius:8px;font-size:13px;">
         <strong>${email}</strong><br>
-        ${d.total} consultas totales · ${d.coste}€ coste acumulado
+        ${d.total} consulta${d.total !== 1 ? "s" : ""} totales · ${d.coste}€ coste acumulado
       </div>`;
     renderChartUsuario(d.dias || [], email);
     document.getElementById("chartUserWrap").style.display = "block";
