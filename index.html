@@ -138,6 +138,11 @@
 
     <!-- Chat -->
     <div id="panel-chat" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+      <div style="display:flex;justify-content:flex-end;gap:6px;padding:6px 12px;background:#f8f9fa;border-bottom:0.5px solid #e0e0e0;">
+        <button onclick="copyLast()" class="btn-secondary" title="Copiar última respuesta">📋 Copiar respuesta</button>
+        <button onclick="copyAll()" class="btn-secondary" title="Copiar todo el chat">📋 Copiar todo</button>
+        <button onclick="printChat()" class="btn-secondary" title="Imprimir">🖨️ Imprimir</button>
+      </div>
       <div class="messages" id="messages"></div>
       <div class="input-bar">
         <textarea id="chatInput" rows="2" style="flex:1" placeholder="Escribe tu consulta… (Enter para enviar, Shift+Enter para nueva línea)" onkeydown="handleChatKey(event)"></textarea>
