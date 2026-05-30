@@ -4,19 +4,77 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Funcionarios RC</title>
-  <script src="https://accounts.google.com/gsi/client" async defer>// Exponer funciones globalmente
-window.copyLast = copyLast;
-window.copyAll = copyAll;
-window.printChat = printChat;
-
-document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("btnCopyLast").addEventListener("click", copyLast);
-  document.getElementById("btnCopyAll").addEventListener("click", copyAll);
-  document.getElementById("btnPrint").addEventListener("click", printChat);
-});
-</script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg viewBox='0 0 120 100' xmlns='http://www.w3.org/2000/svg'><circle cx='60' cy='22' r='14' fill='%232196F3'/><path d='M38 75 Q38 50 60 50 Q82 50 82 75 L82 90 L38 90 Z' fill='%232196F3'/><circle cx='28' cy='30' r='11' fill='%23F44336'/><path d='M8 85 Q8 62 28 62 Q38 62 44 70 L38 75 Q34 68 28 68 Q14 68 14 85 Z' fill='%23F44336'/><circle cx='92' cy='30' r='11' fill='%234CAF50'/><path d='M112 85 Q112 62 92 62 Q82 62 76 70 L82 75 Q86 68 92 68 Q106 68 106 85 Z' fill='%234CAF50'/><rect x='48' y='60' width='10' height='30' rx='3' fill='%23FF9800'/><rect x='62' y='55' width='10' height='35' rx='3' fill='%239C27B0'/><rect x='76' y='62' width='9' height='28' rx='3' fill='%23FFEB3B'/><rect x='35' y='64' width='9' height='26' rx='3' fill='%23F44336'/></svg>">
+
+  <!-- Funciones globales de chat - deben estar ANTES que el HTML que las usa -->
+  <script>
+    // Se inicializan tras cargar la página
+    var messages = [];
+    var currentUser = null;
+
+    function stripMarkdown(text) {
+      return (text||"")
+        .replace(/#{1,3} /g,"").replace(/\*\*(.+?)\*\*/g,"$1")
+        .replace(/\*(.+?)\*/g,"$1").replace(/`(.+?)`/g,"$1")
+        .replace(/^[-•] /gm,"• ").trim();
+    }
+
+    function showCopyToast(msg) {
+      var t = document.createElement("div");
+      t.textContent = msg;
+      t.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;z-index:9999;";
+      document.body.appendChild(t);
+      setTimeout(function(){ t.remove(); }, 2500);
+    }
+
+    function fallbackCopy(text) {
+      var el = document.createElement("textarea");
+      el.value = text; el.style.cssText = "position:fixed;opacity:0;";
+      document.body.appendChild(el); el.focus(); el.select();
+      try { document.execCommand("copy"); showCopyToast("✅ Copiado"); }
+      catch(e) { showCopyToast("❌ Error al copiar"); }
+      document.body.removeChild(el);
+    }
+
+    function doCopy(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function(){ showCopyToast("✅ Copiado al portapapeles"); }).catch(function(){ fallbackCopy(text); });
+      } else { fallbackCopy(text); }
+    }
+
+    function copyLast() {
+      var last = null;
+      for (var i = messages.length-1; i >= 0; i--) { if (messages[i].role==="assistant"){ last=messages[i]; break; } }
+      if (!last) { showCopyToast("❌ No hay respuesta que copiar"); return; }
+      doCopy(stripMarkdown(last.content));
+    }
+
+    function copyAll() {
+      if (!messages.length) { showCopyToast("❌ El chat está vacío"); return; }
+      var text = messages.map(function(m){
+        return (m.role==="user"?"👤 Consulta":"⚖️ Respuesta") + ":\n" + stripMarkdown(m.content);
+      }).join("\n\n---\n\n");
+      doCopy(text);
+    }
+
+    function printChat() {
+      if (!messages.length) { showCopyToast("❌ El chat está vacío"); return; }
+      var content = messages.map(function(m){
+        var prefix = m.role==="user"?"👤 CONSULTA":"⚖️ RESPUESTA";
+        var text = stripMarkdown(m.content).replace(/\n/g,"<br>");
+        return "<div style='margin-bottom:16px'><strong>"+prefix+":</strong><br>"+text+"</div><hr>";
+      }).join("");
+      var win = window.open("","_blank");
+      if (!win) { showCopyToast("❌ Permite ventanas emergentes"); return; }
+      var user = currentUser ? currentUser.name : "";
+      var fecha = new Date().toLocaleDateString("es-ES");
+      win.document.write("<!DOCTYPE html><html><head><title>Funcionarios RC</title><style>body{font-family:Arial,sans-serif;padding:32px;font-size:14px;line-height:1.6;max-width:800px;margin:0 auto}h1{font-size:18px;color:#185FA5;margin-bottom:4px}p{color:#888;font-size:12px;margin-bottom:24px}hr{border:none;border-top:1px solid #e0e0e0;margin:12px 0}</style></head><body><h1>⚖️ Funcionarios RC — Registro Civil</h1><p>Exportado el "+fecha+" · "+user+"</p>"+content+"<script>window.onload=function(){window.print();}<\/script></body></html>");
+      win.document.close();
+    }
+  </script>
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; height: 100vh; display: flex; flex-direction: column; }
@@ -39,14 +97,23 @@ document.addEventListener("DOMContentLoaded", () => {
     .bubble-wrap { display: flex; margin-bottom: 12px; }
     .bubble-wrap.user { justify-content: flex-end; }
     .avatar { width: 28px; height: 28px; border-radius: 50%; background: #E6F1FB; display: flex; align-items: center; justify-content: center; margin-right: 8px; flex-shrink: 0; align-self: flex-end; font-size: 13px; }
-    .bubble { max-width: 78%; padding: 10px 14px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
-    .bubble.user { border-radius: 16px 16px 4px 16px; background: #185FA5; color: #fff; }
+    .bubble { max-width: 78%; padding: 10px 14px; font-size: 14px; line-height: 1.6; }
+    .bubble.user { border-radius: 16px 16px 4px 16px; background: #185FA5; color: #fff; white-space: pre-wrap; }
     .bubble.assistant { border-radius: 16px 16px 16px 4px; background: #fff; color: #1a1a1a; border: 0.5px solid #e0e0e0; }
+    .bubble.assistant h1,.bubble.assistant h2,.bubble.assistant h3 { margin: 8px 0 4px; }
+    .bubble.assistant h1 { font-size: 15px; }
+    .bubble.assistant h2 { font-size: 14px; }
+    .bubble.assistant h3 { font-size: 13px; }
+    .bubble.assistant ul { padding-left: 16px; margin: 4px 0; }
+    .bubble.assistant li { margin-bottom: 2px; }
+    .bubble.assistant p { margin-bottom: 6px; }
+    .bubble.assistant table { border-collapse: collapse; width: 100%; font-size: 12px; margin: 8px 0; }
+    .bubble.assistant th, .bubble.assistant td { border: 1px solid #e0e0e0; padding: 4px 8px; text-align: left; }
+    .bubble.assistant th { background: #f8f9fa; font-weight: 600; }
     .docs-used { font-size: 11px; color: #888; margin-top: 4px; padding: 3px 8px; background: #f8f9fa; border-radius: 5px; border: 1px solid #e0e0e0; }
     .input-bar { padding: 10px 12px; border-top: 0.5px solid #e0e0e0; display: flex; gap: 8px; align-items: flex-end; background: #fff; }
     textarea { resize: none; font-size: 14px; padding: 8px 10px; border-radius: 8px; border: 1px solid #ddd; background: #f8f9fa; color: #1a1a1a; line-height: 1.5; font-family: inherit; outline: none; }
     .send-btn { padding: 8px 16px; border-radius: 8px; background: #185FA5; color: #fff; border: none; cursor: pointer; font-size: 18px; flex-shrink: 0; }
-    .send-btn:disabled { background: #f0f0f0; color: #aaa; cursor: not-allowed; }
     .file-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #fff; border: 1px solid #e0e0e0; border-radius: 9px; cursor: pointer; margin-bottom: 8px; }
     .file-item.selected { border-color: #a5d6a7; }
     .file-name { font-size: 13px; font-weight: 500; color: #1a1a1a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
@@ -90,6 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
     .tab-bar { display: flex; gap: 4px; margin-bottom: 12px; }
     .tab { padding: 5px 12px; border-radius: 6px; border: 1px solid #ddd; background: transparent; font-size: 12px; cursor: pointer; color: #666; }
     .tab.active { background: #E6F1FB; border-color: #185FA5; color: #185FA5; font-weight: 500; }
+    .chat-btn { padding: 5px 12px; border-radius: 7px; border: 1px solid #185FA5; background: #E6F1FB; color: #185FA5; cursor: pointer; font-size: 12px; }
   </style>
 </head>
 <body>
@@ -149,9 +217,9 @@ document.addEventListener("DOMContentLoaded", () => {
     <!-- Chat -->
     <div id="panel-chat" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
       <div style="display:flex;justify-content:flex-start;gap:6px;padding:6px 12px;background:#f8f9fa;border-bottom:0.5px solid #e0e0e0;">
-        <button id="btnCopyLast" style="padding:5px 12px;border-radius:7px;border:1px solid #185FA5;background:#E6F1FB;color:#185FA5;cursor:pointer;font-size:12px;">📋 Copiar respuesta</button>
-        <button id="btnCopyAll" style="padding:5px 12px;border-radius:7px;border:1px solid #185FA5;background:#E6F1FB;color:#185FA5;cursor:pointer;font-size:12px;">📋 Copiar todo</button>
-        <button id="btnPrint" style="padding:5px 12px;border-radius:7px;border:1px solid #185FA5;background:#E6F1FB;color:#185FA5;cursor:pointer;font-size:12px;">🖨️ Imprimir</button>
+        <button class="chat-btn" onclick="copyLast()">📋 Copiar respuesta</button>
+        <button class="chat-btn" onclick="copyAll()">📋 Copiar todo</button>
+        <button class="chat-btn" onclick="printChat()">🖨️ Imprimir</button>
       </div>
       <div class="messages" id="messages"></div>
       <div class="input-bar">
@@ -170,8 +238,6 @@ document.addEventListener("DOMContentLoaded", () => {
     <div id="panel-admin" class="panel" style="display:none;">
       <div class="admin-panel">
         <h2>⚙️ Panel de Administración</h2>
-
-        <!-- Tabs -->
         <div class="tab-bar">
           <button class="tab active" onclick="showAdminTab('sistema')">🗂 Sistema</button>
           <button class="tab" onclick="showAdminTab('consumo')">📊 Consumo</button>
@@ -183,16 +249,12 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="admin-card">
             <h3>📤 Subir documento a Drive</h3>
             <p>Sube un archivo directamente a la carpeta de Drive. Se indexará automáticamente.</p>
-            
-            <!-- Selector de carpeta -->
             <div style="margin-bottom:12px;">
               <div style="font-size:12px;color:#666;margin-bottom:6px;">📁 Carpeta de destino:</div>
               <div id="folderBreadcrumb" style="font-size:12px;color:#185FA5;margin-bottom:6px;"></div>
               <div id="folderList" style="border:1px solid #e0e0e0;border-radius:8px;background:#fff;max-height:180px;overflow-y:auto;"></div>
             </div>
-
-            <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.odt" style="margin-bottom:10px;font-size:13px;"/>
-            <br>
+            <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.odt" style="margin-bottom:10px;font-size:13px;"/><br>
             <button class="btn-primary" onclick="subirArchivo()" id="subirBtn">⬆️ Subir archivo</button>
             <div id="subirStatus"></div>
           </div>
@@ -236,13 +298,12 @@ document.addEventListener("DOMContentLoaded", () => {
         <div id="tab-usuarios" style="display:none;">
           <div class="admin-card">
             <h3>👥 Buscar usuario</h3>
-            <input type="text" class="user-search" id="userSearchInput" placeholder="Escribe email o nombre…" oninput="filterUsers()" />
+            <input type="text" class="user-search" id="userSearchInput" placeholder="Escribe email o nombre…" oninput="filterUsers()"/>
             <div class="user-list" id="userList"></div>
             <div id="userDetail" style="margin-top:12px;"></div>
             <div class="chart-wrap" style="display:none;" id="chartUserWrap"><canvas id="chartUsuario"></canvas></div>
           </div>
         </div>
-
       </div>
     </div>
   </div>
@@ -257,28 +318,29 @@ const ADMIN_EMAIL = "rcscpalma@gmail.com";
 const SESSION_KEY = "frc_session";
 const SESSION_TTL = 60 * 60 * 1000;
 
-let currentUser = null, mode = "chat", files = [], selectedDocs = [], messages = [], loading = false;
-let chartDiarioInst = null, chartUsuarioInst = null;
-let allUsuarios = [];
+// messages y currentUser ya declarados en el primer <script>
+var mode = "chat", files = [], selectedDocs = [], loading = false;
+var chartDiarioInst = null, chartUsuarioInst = null, allUsuarios = [];
+var selectedFolderId = null, folderStack = [];
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
-window.onload = () => {
+window.onload = function() {
   try {
-    const saved = localStorage.getItem(SESSION_KEY);
+    var saved = localStorage.getItem(SESSION_KEY);
     if (saved) {
-      const session = JSON.parse(saved);
+      var session = JSON.parse(saved);
       if (Date.now() < session.expires) { currentUser = session.user; showApp(); return; }
       localStorage.removeItem(SESSION_KEY);
     }
   } catch(e) {}
   google.accounts.id.initialize({ client_id: CLIENT_ID, callback: handleCredential, auto_select: false });
-  google.accounts.id.renderButton(document.getElementById("googleBtn"), { theme: "outline", size: "large", text: "signin_with", locale: "es" });
+  google.accounts.id.renderButton(document.getElementById("googleBtn"), { theme:"outline", size:"large", text:"signin_with", locale:"es" });
 };
 
 function handleCredential(resp) {
-  const p = parseJwt(resp.credential);
-  currentUser = { email: p.email, name: p.name, picture: p.picture };
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ user: currentUser, expires: Date.now() + SESSION_TTL }));
+  var p = parseJwt(resp.credential);
+  currentUser = { email:p.email, name:p.name, picture:p.picture };
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ user:currentUser, expires:Date.now()+SESSION_TTL }));
   showApp();
 }
 
@@ -288,13 +350,13 @@ function parseJwt(token) {
 
 function showApp() {
   document.getElementById("loginPanel").style.display = "none";
-  const main = document.getElementById("mainApp");
+  var main = document.getElementById("mainApp");
   main.style.display = "flex"; main.style.flexDirection = "column";
   document.getElementById("userBadge").style.display = "flex";
   document.getElementById("userAvatar").src = currentUser.picture;
   document.getElementById("userName").textContent = currentUser.name;
   if (currentUser.email === ADMIN_EMAIL) document.getElementById("btn-admin").style.display = "block";
-  messages = [{ role:"assistant", content:`Hola, ${currentUser.name.split(" ")[0]}. Soy el asistente jurídico de Registro Civil.\n\nPuedes preguntarme sobre legislación, resoluciones de la DGRN/DGSJFP, procedimientos, inscripciones, nacionalidad, filiación, matrimonio y cualquier materia de Registro Civil.\n\nLa búsqueda en documentos es automática — selecciono los más relevantes para cada consulta.` }];
+  messages = [{ role:"assistant", content:"Hola, "+currentUser.name.split(" ")[0]+". Soy el asistente jurídico de Registro Civil.\n\nPuedes preguntarme sobre legislación, resoluciones de la DGRN/DGSJFP, procedimientos, inscripciones, nacionalidad, filiación, matrimonio y cualquier materia de Registro Civil.\n\nLa búsqueda en documentos es automática — selecciono los más relevantes para cada consulta." }];
   renderMessages();
   loadFiles();
   updateContextBar();
@@ -307,51 +369,49 @@ function logout() {
   document.getElementById("loginPanel").style.display = "flex";
   document.getElementById("mainApp").style.display = "none";
   document.getElementById("userBadge").style.display = "none";
-  google.accounts.id.initialize({ client_id: CLIENT_ID, callback: handleCredential, auto_select: false });
-  google.accounts.id.renderButton(document.getElementById("googleBtn"), { theme: "outline", size: "large", text: "signin_with", locale: "es" });
+  google.accounts.id.initialize({ client_id:CLIENT_ID, callback:handleCredential, auto_select:false });
+  google.accounts.id.renderButton(document.getElementById("googleBtn"), { theme:"outline", size:"large", text:"signin_with", locale:"es" });
 }
 
 // ── PROXY ─────────────────────────────────────────────────────────────────────
 async function proxyFetch(params) {
-  if (["list","indexInfo","consumoTotal","consumoDiario"].includes(params.action) || params.action === "consumoUsuario" || params.action === "miConsumo") {
-    const qs = new URLSearchParams(params).toString();
-    const target = encodeURIComponent(BRIDGE_URL + "?" + qs);
-    const r = await fetch(PROXY_URL + "?url=" + target);
+  var gets = ["list","indexInfo","consumoTotal","consumoDiario","consumoUsuario","miConsumo","listFolders"];
+  if (gets.includes(params.action)) {
+    var qs = new URLSearchParams(params).toString();
+    var r = await fetch(PROXY_URL + "?url=" + encodeURIComponent(BRIDGE_URL + "?" + qs));
     return r.json();
   }
-  const target = encodeURIComponent(BRIDGE_URL);
-  const r = await fetch(PROXY_URL + "?url=" + target, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params)
+  var r2 = await fetch(PROXY_URL + "?url=" + encodeURIComponent(BRIDGE_URL), {
+    method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(params)
   });
-  return r.json();
+  return r2.json();
 }
 
 // ── MODO ──────────────────────────────────────────────────────────────────────
 function setMode(m) {
   mode = m;
-  ["chat","drive","admin"].forEach(id => {
-    const p = document.getElementById("panel-"+id);
-    const b = document.getElementById("btn-"+id);
+  ["chat","drive","admin"].forEach(function(id){
+    var p = document.getElementById("panel-"+id);
+    var b = document.getElementById("btn-"+id);
     if (p) p.style.display = "none";
     if (b) b.classList.remove("active");
   });
-  const panel = document.getElementById("panel-"+m);
-  if (panel) { panel.style.display = m==="chat"?"flex":"block"; if (m==="chat") panel.style.flexDirection="column"; }
-  document.getElementById("btn-"+m)?.classList.add("active");
+  var panel = document.getElementById("panel-"+m);
+  if (panel) { panel.style.display = m==="chat"?"flex":"block"; if(m==="chat") panel.style.flexDirection="column"; }
+  var btn = document.getElementById("btn-"+m);
+  if (btn) btn.classList.add("active");
   updateContextBar();
-  if (m === "admin") { showAdminTab("sistema"); }
+  if (m==="admin") showAdminTab("sistema");
 }
 
 function updateContextBar() {
-  const bar = document.getElementById("context-bar");
+  var bar = document.getElementById("context-bar");
   if (!bar) return;
-  const names = files.filter(f => selectedDocs.includes(f.id)).map(f => f.name.split(" / ").pop());
-  if (names.length && mode !== "drive") {
+  var names = files.filter(function(f){ return selectedDocs.includes(f.id); }).map(function(f){ return f.name.split(" / ").pop(); });
+  if (names.length && mode!=="drive") {
     bar.style.display="block"; bar.style.background="#e8f5e9"; bar.style.borderColor="#c8e6c9"; bar.style.color="#2e7d32";
     bar.textContent = "📌 Contexto fijo: " + names.join(" · ");
-  } else if (mode !== "drive") {
+  } else if (mode!=="drive") {
     bar.style.display="block"; bar.style.background="#E6F1FB"; bar.style.borderColor="#90CAF9"; bar.style.color="#185FA5";
     bar.textContent = "🔍 Modo automático: selecciono los documentos más relevantes para cada consulta";
   } else { bar.style.display="none"; }
@@ -360,416 +420,259 @@ function updateContextBar() {
 // ── ARCHIVOS ──────────────────────────────────────────────────────────────────
 async function loadFiles() {
   try {
-    const d = await proxyFetch({ action:"list" });
+    var d = await proxyFetch({ action:"list" });
     if (d.error) throw new Error(d.error);
     files = d.files || [];
     renderFiles();
   } catch(e) {
-    document.getElementById("driveContent").innerHTML = `<div style='color:#c00;font-size:13px;'>❌ Error: ${e.message}</div>`;
+    document.getElementById("driveContent").innerHTML = "<div style='color:#c00;font-size:13px;'>❌ Error: "+e.message+"</div>";
   }
 }
 
 function renderFiles() {
-  const sel = selectedDocs.length;
-  let html = `<div style="font-size:12px;color:#888;margin-bottom:12px;">${files.length} archivos · ${sel?`<strong style="color:#185FA5">${sel} seleccionados</strong>`:"ninguno (modo automático)"}</div>`;
-  if (sel) html += `<button onclick="clearSelection()" style="margin-bottom:12px;padding:4px 12px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer;font-size:12px;">✕ Limpiar selección</button><br>`;
-  html += files.map(f => {
-    const icon = f.mimeType==="application/pdf"?"📄":f.mimeType?.includes("document")?"📝":"📎";
-    const checked = selectedDocs.includes(f.id);
-    const shortName = f.name.split(" / ").pop();
-    const folder = f.name.includes(" / ") ? f.name.split(" / ").slice(0,-1).join(" / ") : "";
-    return `<div class="file-item${checked?" selected":""}" onclick="toggleDoc('${f.id}')">
-      <span style="font-size:18px">${icon}</span>
-      <div style="flex:1;min-width:0;"><div class="file-name">${shortName}</div>${folder?`<div class="file-type">${folder}</div>`:""}</div>
-      <div class="checkbox${checked?" checked":""}">${checked?"✓":""}</div>
-    </div>`;
+  var sel = selectedDocs.length;
+  var html = "<div style='font-size:12px;color:#888;margin-bottom:12px;'>"+files.length+" archivos · "+(sel?"<strong style='color:#185FA5'>"+sel+" seleccionados</strong>":"ninguno (modo automático)")+"</div>";
+  if (sel) html += "<button onclick='clearSelection()' style='margin-bottom:12px;padding:4px 12px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer;font-size:12px;'>✕ Limpiar selección</button><br>";
+  html += files.map(function(f){
+    var icon = f.mimeType==="application/pdf"?"📄":f.mimeType&&f.mimeType.includes("document")?"📝":"📎";
+    var checked = selectedDocs.includes(f.id);
+    var shortName = f.name.split(" / ").pop();
+    var folder = f.name.includes(" / ") ? f.name.split(" / ").slice(0,-1).join(" / ") : "";
+    return "<div class='file-item"+(checked?" selected":"")+"' onclick='toggleDoc(\""+f.id+"\")'><span style='font-size:18px'>"+icon+"</span><div style='flex:1;min-width:0;'><div class='file-name'>"+shortName+"</div>"+(folder?"<div class='file-type'>"+folder+"</div>":"")+"</div><div class='checkbox"+(checked?" checked":"")+"'>"+(checked?"✓":"")+"</div></div>";
   }).join("");
   document.getElementById("driveContent").innerHTML = html;
   updateContextBar();
 }
 
-function toggleDoc(id) { selectedDocs = selectedDocs.includes(id)?selectedDocs.filter(d=>d!==id):[...selectedDocs,id]; renderFiles(); updateContextBar(); }
+function toggleDoc(id) { selectedDocs = selectedDocs.includes(id)?selectedDocs.filter(function(d){return d!==id;}):[...selectedDocs,id]; renderFiles(); updateContextBar(); }
 function clearSelection() { selectedDocs=[]; renderFiles(); updateContextBar(); }
 
-// ── MENSAJES ──────────────────────────────────────────────────────────────────
+// ── RENDER MARKDOWN ───────────────────────────────────────────────────────────
 function renderMarkdown(text) {
   return text
     .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-    .replace(/^### (.+)$/gm, "<h3>$1</h3>")
-    .replace(/^## (.+)$/gm, "<h2>$1</h2>")
-    .replace(/^# (.+)$/gm, "<h1>$1</h1>")
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/`(.+?)`/g, "<code>$1</code>")
-    .replace(/^[-•] (.+)$/gm, "<li>$1</li>")
-    .replace(/(<li>.*<\/li>)/gs, "<ul>$1</ul>")
-    .replace(/\n{2,}/g, "<br><br>")
-    .replace(/\n/g, "<br>")
-    .replace(/🟢/g, "🟢").replace(/🔴/g, "🔴");
+    .replace(/^### (.+)$/gm,"<h3>$1</h3>")
+    .replace(/^## (.+)$/gm,"<h2>$1</h2>")
+    .replace(/^# (.+)$/gm,"<h1>$1</h1>")
+    .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g,"<em>$1</em>")
+    .replace(/`(.+?)`/g,"<code>$1</code>")
+    .replace(/^[-•] (.+)$/gm,"<li>$1</li>")
+    .replace(/(<li>.*<\/li>)/gs,"<ul>$1</ul>")
+    .replace(/\n{2,}/g,"<br><br>")
+    .replace(/\n/g,"<br>");
 }
 
+// ── MENSAJES ──────────────────────────────────────────────────────────────────
 function renderMessages() {
-  const el = document.getElementById("messages");
-  el.innerHTML = messages.map(m => `
-    <div class="bubble-wrap ${m.role}">
-      ${m.role==="assistant"?'<div class="avatar">⚖️</div>':""}
-      <div>
-        <div class="bubble ${m.role}">${m.role === "assistant" ? renderMarkdown(m.content) : m.content.replace(/</g,"&lt;")}</div>
-        ${m.docsUsados?`<div class="docs-used">📚 ${m.docsUsados}</div>`:""}
-      </div>
-    </div>`).join("");
-  if (loading) el.innerHTML += `<div class="typing"><div class="avatar">⚖️</div><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+  var el = document.getElementById("messages");
+  el.innerHTML = messages.map(function(m){
+    return "<div class='bubble-wrap "+m.role+"'>"+(m.role==="assistant"?"<div class='avatar'>⚖️</div>":"")+
+      "<div><div class='bubble "+m.role+"'>"+(m.role==="assistant"?renderMarkdown(m.content):m.content.replace(/</g,"&lt;"))+"</div>"+
+      (m.docsUsados?"<div class='docs-used'>📚 "+m.docsUsados+"</div>":"")+"</div></div>";
+  }).join("");
+  if (loading) el.innerHTML += "<div class='typing'><div class='avatar'>⚖️</div><div class='dots'><div class='dot'></div><div class='dot'></div><div class='dot'></div></div></div>";
   el.scrollTop = el.scrollHeight;
 }
 
 async function callBridge(msgs) {
-  // Limpiar campos extra antes de enviar a Claude
-  const cleanMsgs = msgs.map(m => ({ role: m.role, content: m.content }));
-  const d = await proxyFetch({
-    action:"chat",
-    messages: JSON.stringify(cleanMsgs),
-    docIds: JSON.stringify(selectedDocs),
-    email: currentUser?.email || "anónimo",
-    nombre: currentUser?.name || "Usuario"
-  });
+  var cleanMsgs = msgs.map(function(m){ return { role:m.role, content:m.content }; });
+  var d = await proxyFetch({ action:"chat", messages:JSON.stringify(cleanMsgs), docIds:JSON.stringify(selectedDocs), email:currentUser?currentUser.email:"anónimo", nombre:currentUser?currentUser.name:"Usuario" });
   if (d.error) throw new Error(d.error);
   return d;
 }
 
 async function sendMessage() {
-  const input = document.getElementById("chatInput");
-  const text = input.value.trim();
+  var input = document.getElementById("chatInput");
+  var text = input.value.trim();
   if (!text||loading) return;
   messages.push({ role:"user", content:text });
   input.value=""; loading=true; renderMessages();
   try {
-    const result = await callBridge(messages);
+    var result = await callBridge(messages);
     messages.push({ role:"assistant", content:result.reply, docsUsados:result.docsUsados });
-    loadMiConsumo(); // actualizar badge
+    loadMiConsumo();
   } catch(e) { messages.push({ role:"assistant", content:"Error: "+e.message }); }
   loading=false; renderMessages();
 }
 
 function handleChatKey(e) { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} }
 
-async function runSearch() {
-  const input = document.getElementById("searchInput");
-  const q = input.value.trim();
-  if (!q||loading) return;
-  loading=true;
-  document.getElementById("searchResult").innerHTML = "<div style='padding:16px;color:#888;'>⏳ Consultando documentos…</div>";
-  try {
-    const result = await callBridge([{role:"user",content:q}]);
-    document.getElementById("searchResult").innerHTML = `
-      <div style="padding:16px;background:#fff;border:0.5px solid #e0e0e0;border-radius:12px;">
-        <div style="font-size:12px;color:#666;margin-bottom:8px;">🔍 <strong>${q}</strong></div>
-        <div style="font-size:14px;line-height:1.7;white-space:pre-wrap;color:#1a1a1a;">${result.reply.replace(/</g,"&lt;")}</div>
-        ${result.docsUsados?`<div class="docs-used" style="margin-top:10px;">📚 ${result.docsUsados}</div>`:""}
-      </div>`;
-    loadMiConsumo();
-  } catch(e) { document.getElementById("searchResult").innerHTML=`<div style='color:#c00;'>Error: ${e.message}</div>`; }
-  loading=false;
-}
-
-function handleSearchKey(e) { if(e.key==="Enter"&&e.ctrlKey) runSearch(); }
-
-// ── EXPLORADOR DE CARPETAS ────────────────────────────────────────────────────
-let selectedFolderId = null;
-let folderStack = []; // historial de navegación
-
-async function initFolderExplorer() {
-  folderStack = [];
-  await loadFolder(null);
-}
-
-async function loadFolder(folderId) {
-  const list = document.getElementById("folderList");
-  const breadcrumb = document.getElementById("folderBreadcrumb");
-  list.innerHTML = `<div style="padding:10px;color:#888;font-size:13px;">⏳ Cargando…</div>`;
-
-  try {
-    const d = await proxyFetch({ action:"listFolders", folderId: folderId || "" });
-    if (d.error) throw new Error(d.error);
-
-    selectedFolderId = d.id;
-
-    // Breadcrumb
-    const path = folderStack.map(f => f.name).join(" › ");
-    breadcrumb.textContent = path ? `📁 ${path} › ${d.name}` : `📁 ${d.name} (raíz)`;
-
-    // Listado
-    let html = "";
-    // Botón volver
-    if (folderStack.length > 0) {
-      html += `<div onclick="goBack()" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;color:#185FA5;font-size:13px;">
-        ⬅️ <span>Volver</span>
-      </div>`;
-    }
-    // Opción "guardar aquí"
-    html += `<div onclick="selectFolder('${d.id}','${d.name.replace(/'/g,"\\'")}', true)" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:13px;background:${selectedFolderId===d.id?'#E6F1FB':'#fff'};color:#2e7d32;font-weight:500;">
-      ✅ Guardar aquí (${d.name})
-    </div>`;
-    // Subcarpetas
-    if (d.subfolders.length === 0) {
-      html += `<div style="padding:8px 12px;color:#aaa;font-size:12px;">Sin subcarpetas</div>`;
-    } else {
-      d.subfolders.forEach(sub => {
-        html += `<div onclick="navigateFolder('${sub.id}','${sub.name.replace(/'/g,"\\'")}','${d.id}','${d.name.replace(/'/g,"\\'")}' )" 
-          style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:0.5px solid #f0f0f0;font-size:13px;">
-          <span>📁 ${sub.name}</span>
-          <span style="color:#aaa;font-size:11px;">▶</span>
-        </div>`;
-      });
-    }
-
-    list.innerHTML = html;
-  } catch(e) {
-    list.innerHTML = `<div style="padding:10px;color:#c00;font-size:13px;">❌ ${e.message}</div>`;
-  }
-}
-
-function navigateFolder(id, name, parentId, parentName) {
-  folderStack.push({ id: parentId, name: parentName });
-  loadFolder(id);
-}
-
-function goBack() {
-  const parent = folderStack.pop();
-  if (parent) loadFolder(parent.id);
-}
-
-function selectFolder(id, name, stay) {
-  selectedFolderId = id;
-  document.getElementById("folderBreadcrumb").style.fontWeight = "600";
-  document.getElementById("subirStatus").innerHTML = `<div class="status-msg status-info">📁 Carpeta seleccionada: ${name}</div>`;
-}
-
-// ── SUBIDA DE ARCHIVOS ────────────────────────────────────────────────────────
-async function subirArchivo() {
-  const fileInput = document.getElementById("fileInput");
-  const status = document.getElementById("subirStatus");
-  const btn = document.getElementById("subirBtn");
-
-  if (!fileInput.files.length) {
-    status.innerHTML = `<div class="status-msg status-err">❌ Selecciona un archivo primero.</div>`;
-    return;
-  }
-  if (!selectedFolderId) {
-    status.innerHTML = `<div class="status-msg status-err">❌ Selecciona una carpeta de destino primero.</div>`;
-    return;
-  }
-
-  const file = fileInput.files[0];
-  btn.disabled = true;
-  status.innerHTML = `<div class="status-msg status-info">⏳ Subiendo «${file.name}»…</div>`;
-
-  try {
-    const base64 = await new Promise((res, rej) => {
-      const reader = new FileReader();
-      reader.onload = e => res(e.target.result.split(",")[1]);
-      reader.onerror = rej;
-      reader.readAsDataURL(file);
-    });
-
-    const d = await proxyFetch({
-      action: "subirArchivo",
-      nombre: file.name,
-      mimeType: file.type,
-      base64,
-      folderId: selectedFolderId
-    });
-
-    if (d.error) throw new Error(d.error);
-    status.innerHTML = `<div class="status-msg status-ok">✅ «${d.nombre}» subido correctamente en 📁 ${d.carpeta}.</div>`;
-    fileInput.value = "";
-  } catch(e) {
-    status.innerHTML = `<div class="status-msg status-err">❌ Error: ${e.message}</div>`;
-  }
-  btn.disabled = false;
-}
-
+// ── MI CONSUMO ────────────────────────────────────────────────────────────────
 async function loadMiConsumo() {
   if (!currentUser) return;
   try {
-    const d = await proxyFetch({ action:"miConsumo", email: currentUser.email });
+    var d = await proxyFetch({ action:"miConsumo", email:currentUser.email });
     if (d.error) return;
-    const badge = document.getElementById("myUsageBadge");
+    var badge = document.getElementById("myUsageBadge");
     badge.style.display = "inline";
-    badge.textContent = `${d.consultas} consulta${d.consultas !== 1 ? "s" : ""} · ${d.coste}€`;
+    badge.textContent = d.consultas+" consulta"+(d.consultas!==1?"s":"")+" · "+d.coste+"€";
   } catch(e) {}
 }
 
 // ── ADMIN TABS ────────────────────────────────────────────────────────────────
 function showAdminTab(tab) {
-  ["sistema","consumo","usuarios"].forEach(t => {
-    document.getElementById("tab-"+t).style.display = "none";
-  });
+  ["sistema","consumo","usuarios"].forEach(function(t){ document.getElementById("tab-"+t).style.display="none"; });
   document.getElementById("tab-"+tab).style.display = "block";
-  document.querySelectorAll(".tab").forEach((b,i) => {
-    b.classList.toggle("active", ["sistema","consumo","usuarios"][i] === tab);
-  });
-  if (tab === "sistema") initFolderExplorer();
-  if (tab === "consumo") loadConsumoTotal();
-  if (tab === "usuarios") loadUsuarios();
+  document.querySelectorAll(".tab").forEach(function(b,i){ b.classList.toggle("active",["sistema","consumo","usuarios"][i]===tab); });
+  if (tab==="sistema") initFolderExplorer();
+  if (tab==="consumo") loadConsumoTotal();
+  if (tab==="usuarios") loadUsuarios();
+}
+
+// ── EXPLORADOR DE CARPETAS ────────────────────────────────────────────────────
+async function initFolderExplorer() { folderStack=[]; await loadFolder(null); }
+
+async function loadFolder(folderId) {
+  var list = document.getElementById("folderList");
+  var breadcrumb = document.getElementById("folderBreadcrumb");
+  list.innerHTML = "<div style='padding:10px;color:#888;font-size:13px;'>⏳ Cargando…</div>";
+  try {
+    var d = await proxyFetch({ action:"listFolders", folderId:folderId||"" });
+    if (d.error) throw new Error(d.error);
+    selectedFolderId = d.id;
+    var path = folderStack.map(function(f){return f.name;}).join(" › ");
+    breadcrumb.textContent = path ? "📁 "+path+" › "+d.name : "📁 "+d.name+" (raíz)";
+    var html = "";
+    if (folderStack.length>0) html += "<div onclick='goBack()' style='display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;color:#185FA5;font-size:13px;'>⬅️ <span>Volver</span></div>";
+    html += "<div onclick='selectFolder(\""+d.id+"\",\""+d.name.replace(/"/g,"&quot;")+"\")'  style='display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:13px;background:#f0fff0;color:#2e7d32;font-weight:500;'>✅ Guardar aquí ("+d.name+")</div>";
+    if (d.subfolders.length===0) {
+      html += "<div style='padding:8px 12px;color:#aaa;font-size:12px;'>Sin subcarpetas</div>";
+    } else {
+      d.subfolders.forEach(function(sub){
+        html += "<div onclick='navigateFolder(\""+sub.id+"\",\""+sub.name.replace(/"/g,"&quot;")+"\" ,\""+d.id+"\",\""+d.name.replace(/"/g,"&quot;")+"\")'  style='display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:0.5px solid #f0f0f0;font-size:13px;'>📁 "+sub.name+" <span style='color:#aaa;font-size:11px;'>▶</span></div>";
+      });
+    }
+    list.innerHTML = html;
+  } catch(e) { list.innerHTML = "<div style='padding:10px;color:#c00;font-size:13px;'>❌ "+e.message+"</div>"; }
+}
+
+function navigateFolder(id,name,parentId,parentName) { folderStack.push({id:parentId,name:parentName}); loadFolder(id); }
+function goBack() { var p=folderStack.pop(); if(p) loadFolder(p.id); }
+function selectFolder(id,name) {
+  selectedFolderId=id;
+  document.getElementById("subirStatus").innerHTML = "<div class='status-msg status-info'>📁 Carpeta seleccionada: "+name+"</div>";
+}
+
+// ── SUBIDA DE ARCHIVOS ────────────────────────────────────────────────────────
+async function subirArchivo() {
+  var fileInput = document.getElementById("fileInput");
+  var status = document.getElementById("subirStatus");
+  var btn = document.getElementById("subirBtn");
+  if (!fileInput.files.length) { status.innerHTML="<div class='status-msg status-err'>❌ Selecciona un archivo primero.</div>"; return; }
+  if (!selectedFolderId) { status.innerHTML="<div class='status-msg status-err'>❌ Selecciona una carpeta de destino primero.</div>"; return; }
+  var file = fileInput.files[0];
+  btn.disabled=true;
+  status.innerHTML="<div class='status-msg status-info'>⏳ Subiendo «"+file.name+"»…</div>";
+  try {
+    var base64 = await new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(e){res(e.target.result.split(",")[1]);}; r.onerror=rej; r.readAsDataURL(file); });
+    var d = await proxyFetch({ action:"subirArchivo", nombre:file.name, mimeType:file.type, base64:base64, folderId:selectedFolderId });
+    if (d.error) throw new Error(d.error);
+    status.innerHTML="<div class='status-msg status-ok'>✅ «"+d.nombre+"» subido correctamente en 📁 "+d.carpeta+".</div>";
+    fileInput.value="";
+  } catch(e) { status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>"; }
+  btn.disabled=false;
 }
 
 // ── ADMIN SISTEMA ─────────────────────────────────────────────────────────────
 async function limpiarIndice() {
-  const btn = document.getElementById("limpiarBtn");
-  const status = document.getElementById("limpiarStatus");
-  btn.disabled = true;
-  status.innerHTML = `<div class="status-msg status-info">⏳ Verificando archivos…</div>`;
+  var btn=document.getElementById("limpiarBtn"), status=document.getElementById("limpiarStatus");
+  btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Verificando archivos…</div>";
   try {
-    const d = await proxyFetch({ action:"limpiarIndice" });
-    if (d.error) throw new Error(d.error);
-    status.innerHTML = d.eliminados > 0
-      ? `<div class="status-msg status-ok">✅ Eliminadas ${d.eliminados} entrada${d.eliminados!==1?"s":""} de archivos borrados.</div>`
-      : `<div class="status-msg status-ok">✅ El índice está limpio — no hay entradas huérfanas.</div>`;
-  } catch(e) {
-    status.innerHTML = `<div class="status-msg status-err">❌ Error: ${e.message}</div>`;
-  }
-  btn.disabled = false;
+    var d=await proxyFetch({action:"limpiarIndice"});
+    if(d.error) throw new Error(d.error);
+    status.innerHTML=d.eliminados>0?"<div class='status-msg status-ok'>✅ Eliminadas "+d.eliminados+" entrada"+(d.eliminados!==1?"s":"")+" de archivos borrados.</div>":"<div class='status-msg status-ok'>✅ El índice está limpio.</div>";
+  } catch(e){status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>";}
+  btn.disabled=false;
 }
 
 async function runIndex() {
-  const btn = document.getElementById("indexBtn");
-  const status = document.getElementById("indexStatus");
-  btn.disabled=true;
-  status.innerHTML=`<div class="status-msg status-info">⏳ Indexando… esto puede tardar varios minutos.</div>`;
+  var btn=document.getElementById("indexBtn"), status=document.getElementById("indexStatus");
+  btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Indexando… esto puede tardar varios minutos.</div>";
   try {
-    const d = await proxyFetch({ action:"index" });
-    if (d.error) throw new Error(d.error);
-    status.innerHTML=`<div class="status-msg status-ok">✅ Indexados ${d.indexed} archivos.</div>`;
-  } catch(e) { status.innerHTML=`<div class="status-msg status-err">❌ Error: ${e.message}</div>`; }
+    var d=await proxyFetch({action:"index"});
+    if(d.error) throw new Error(d.error);
+    status.innerHTML="<div class='status-msg status-ok'>✅ Indexados "+d.indexed+" archivos.</div>";
+  } catch(e){status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>";}
   btn.disabled=false;
 }
 
 async function setupTrigger() {
-  const btn=document.getElementById("triggerBtn");
-  const status=document.getElementById("triggerStatus");
-  btn.disabled=true;
-  status.innerHTML=`<div class="status-msg status-info">⏳ Configurando…</div>`;
+  var btn=document.getElementById("triggerBtn"), status=document.getElementById("triggerStatus");
+  btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Configurando…</div>";
   try {
-    const d = await proxyFetch({ action:"setupTrigger" });
-    if (d.error) throw new Error(d.error);
-    status.innerHTML=`<div class="status-msg status-ok">✅ Trigger semanal activado.</div>`;
-  } catch(e) { status.innerHTML=`<div class="status-msg status-err">❌ Error: ${e.message}</div>`; }
+    var d=await proxyFetch({action:"setupTrigger"});
+    if(d.error) throw new Error(d.error);
+    status.innerHTML="<div class='status-msg status-ok'>✅ Trigger semanal activado.</div>";
+  } catch(e){status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>";}
   btn.disabled=false;
 }
 
 async function checkIndex() {
-  const info=document.getElementById("indexInfo");
-  info.textContent="⏳ Consultando…";
+  var info=document.getElementById("indexInfo"); info.textContent="⏳ Consultando…";
   try {
-    const d = await proxyFetch({ action:"indexInfo" });
-    if (d.error) throw new Error(d.error);
-    info.textContent=`📊 ${d.total} documentos indexados · Última actualización: ${d.lastUpdate||"nunca"}`;
-  } catch(e) { info.textContent="❌ Error: "+e.message; }
+    var d=await proxyFetch({action:"indexInfo"});
+    if(d.error) throw new Error(d.error);
+    info.textContent="📊 "+d.total+" documentos indexados · Última actualización: "+(d.lastUpdate||"nunca");
+  } catch(e){info.textContent="❌ Error: "+e.message;}
 }
 
 // ── ADMIN CONSUMO ─────────────────────────────────────────────────────────────
 async function loadConsumoTotal() {
-  const el = document.getElementById("consumoTotalStats");
-  el.innerHTML = "<div style='color:#888;font-size:13px;'>⏳ Cargando…</div>";
+  var el=document.getElementById("consumoTotalStats");
+  el.innerHTML="<div style='color:#888;font-size:13px;'>⏳ Cargando…</div>";
   try {
-    const [total, diario] = await Promise.all([
-      proxyFetch({ action:"consumoTotal" }),
-      proxyFetch({ action:"consumoDiario" })
-    ]);
-    el.innerHTML = `
-      <div class="stat-grid">
-        <div class="stat-box"><div class="val">${total.totalConsultas}</div><div class="lbl">Consultas totales</div></div>
-        <div class="stat-box"><div class="val">${total.totalCoste}€</div><div class="lbl">Coste total</div></div>
-        <div class="stat-box"><div class="val">${(total.totalInput+total.totalOutput).toLocaleString()}</div><div class="lbl">Tokens totales</div></div>
-        <div class="stat-box"><div class="val">${total.usuarios?.length||0}</div><div class="lbl">Usuarios activos</div></div>
-      </div>`;
-    renderChartDiario(diario.dias || []);
-  } catch(e) { el.innerHTML=`<div style='color:#c00;'>❌ ${e.message}</div>`; }
+    var total=await proxyFetch({action:"consumoTotal"});
+    var diario=await proxyFetch({action:"consumoDiario"});
+    el.innerHTML="<div class='stat-grid'><div class='stat-box'><div class='val'>"+total.totalConsultas+"</div><div class='lbl'>Consultas totales</div></div><div class='stat-box'><div class='val'>"+total.totalCoste+"€</div><div class='lbl'>Coste total</div></div><div class='stat-box'><div class='val'>"+((total.totalInput+total.totalOutput)||0).toLocaleString()+"</div><div class='lbl'>Tokens totales</div></div><div class='stat-box'><div class='val'>"+(total.usuarios?total.usuarios.length:0)+"</div><div class='lbl'>Usuarios activos</div></div></div>";
+    renderChartDiario(diario.dias||[]);
+  } catch(e){el.innerHTML="<div style='color:#c00;'>❌ "+e.message+"</div>";}
 }
 
 function renderChartDiario(dias) {
-  const ctx = document.getElementById("chartDiario");
-  if (chartDiarioInst) chartDiarioInst.destroy();
-  chartDiarioInst = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: dias.map(d => d.fecha),
-      datasets: [{
-        label: "Consultas por día",
-        data: dias.map(d => d.consultas),
-        backgroundColor: "#185FA5aa",
-        borderColor: "#185FA5",
-        borderWidth: 1,
-        borderRadius: 4
-      }]
-    },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-  });
+  var ctx=document.getElementById("chartDiario");
+  if(chartDiarioInst) chartDiarioInst.destroy();
+  chartDiarioInst=new Chart(ctx,{type:"bar",data:{labels:dias.map(function(d){return d.fecha;}),datasets:[{label:"Consultas",data:dias.map(function(d){return d.consultas;}),backgroundColor:"#185FA5aa",borderColor:"#185FA5",borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}});
 }
 
 function toggleChartDiario() {
-  const wrap = document.getElementById("chartDiario").parentElement;
-  wrap.style.display = wrap.style.display === "none" ? "block" : "none";
+  var w=document.getElementById("chartDiario").parentElement;
+  w.style.display=w.style.display==="none"?"block":"none";
 }
 
 // ── ADMIN USUARIOS ────────────────────────────────────────────────────────────
 async function loadUsuarios() {
-  try {
-    const d = await proxyFetch({ action:"consumoTotal" });
-    allUsuarios = d.usuarios || [];
-    renderUserList(allUsuarios);
-  } catch(e) {}
+  try { var d=await proxyFetch({action:"consumoTotal"}); allUsuarios=d.usuarios||[]; renderUserList(allUsuarios); } catch(e){}
 }
 
 function renderUserList(list) {
-  const el = document.getElementById("userList");
-  if (!list.length) { el.innerHTML=`<div style='padding:12px;color:#888;font-size:13px;'>No hay datos de usuarios aún.</div>`; return; }
-  el.innerHTML = list.map(u => `
-    <div class="user-row" onclick="loadUserDetail('${u.email}')">
-      <div><div style="font-weight:500">${u.nombre||u.email}</div><div class="email">${u.email}</div></div>
-      <div style="text-align:right"><div style="font-weight:600;color:#185FA5">${u.consultas}</div><div class="email">consulta${u.consultas !== 1 ? "s" : ""}</div></div>
-    </div>`).join("");
+  var el=document.getElementById("userList");
+  if(!list.length){el.innerHTML="<div style='padding:12px;color:#888;font-size:13px;'>No hay datos aún.</div>";return;}
+  el.innerHTML=list.map(function(u){
+    return "<div class='user-row' onclick='loadUserDetail(\""+u.email+"\")'><div><div style='font-weight:500'>"+(u.nombre||u.email)+"</div><div class='email'>"+u.email+"</div></div><div style='text-align:right'><div style='font-weight:600;color:#185FA5'>"+u.consultas+"</div><div class='email'>consulta"+(u.consultas!==1?"s":"")+"</div></div></div>";
+  }).join("");
 }
 
 function filterUsers() {
-  const q = document.getElementById("userSearchInput").value.toLowerCase();
-  const filtered = allUsuarios.filter(u => u.email.toLowerCase().includes(q) || (u.nombre||"").toLowerCase().includes(q));
-  renderUserList(filtered);
+  var q=document.getElementById("userSearchInput").value.toLowerCase();
+  renderUserList(allUsuarios.filter(function(u){return u.email.toLowerCase().includes(q)||(u.nombre||"").toLowerCase().includes(q);}));
 }
 
 async function loadUserDetail(email) {
-  const el = document.getElementById("userDetail");
-  el.innerHTML = "<div style='color:#888;font-size:13px;'>⏳ Cargando…</div>";
+  var el=document.getElementById("userDetail");
+  el.innerHTML="<div style='color:#888;font-size:13px;'>⏳ Cargando…</div>";
   try {
-    const d = await proxyFetch({ action:"consumoUsuario", email });
-    el.innerHTML = `
-      <div style="margin-top:8px;padding:12px;background:#f8f9fa;border-radius:8px;font-size:13px;">
-        <strong>${email}</strong><br>
-        ${d.total} consulta${d.total !== 1 ? "s" : ""} total${d.total !== 1 ? "es" : ""} · ${d.coste}€ coste acumulado
-      </div>`;
-    renderChartUsuario(d.dias || [], email);
-    document.getElementById("chartUserWrap").style.display = "block";
-  } catch(e) { el.innerHTML=`<div style='color:#c00;'>❌ ${e.message}</div>`; }
+    var d=await proxyFetch({action:"consumoUsuario",email:email});
+    el.innerHTML="<div style='margin-top:8px;padding:12px;background:#f8f9fa;border-radius:8px;font-size:13px;'><strong>"+email+"</strong><br>"+d.total+" consulta"+(d.total!==1?"s":"")+" total"+(d.total!==1?"es":"")+" · "+d.coste+"€ coste acumulado</div>";
+    renderChartUsuario(d.dias||[],email);
+    document.getElementById("chartUserWrap").style.display="block";
+  } catch(e){el.innerHTML="<div style='color:#c00;'>❌ "+e.message+"</div>";}
 }
 
-function renderChartUsuario(dias, email) {
-  const ctx = document.getElementById("chartUsuario");
-  if (chartUsuarioInst) chartUsuarioInst.destroy();
-  chartUsuarioInst = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: dias.map(d => d.fecha),
-      datasets: [{
-        label: `Consultas de ${email}`,
-        data: dias.map(d => d.consultas),
-        borderColor: "#4CAF50",
-        backgroundColor: "#4CAF5022",
-        tension: 0.3,
-        fill: true
-      }]
-    },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-  });
+function renderChartUsuario(dias,email) {
+  var ctx=document.getElementById("chartUsuario");
+  if(chartUsuarioInst) chartUsuarioInst.destroy();
+  chartUsuarioInst=new Chart(ctx,{type:"line",data:{labels:dias.map(function(d){return d.fecha;}),datasets:[{label:email,data:dias.map(function(d){return d.consultas;}),borderColor:"#4CAF50",backgroundColor:"#4CAF5022",tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}});
 }
 </script>
 </body>
