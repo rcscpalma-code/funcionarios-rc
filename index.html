@@ -265,7 +265,17 @@
             <div id="limpiarStatus"></div>
           </div>
           <div class="admin-card">
-            <h3>📇 Actualizar índice de documentos</h3>
+            <h3>⚡ Estadísticas de caché</h3>
+            <button class="btn-primary" onclick="loadCacheStats()">Ver estadísticas</button>
+            <div id="cacheStats" style="margin-top:8px;font-size:13px;color:#555;"></div>
+          </div>
+          <div class="admin-card">
+            <h3>🔗 Anthropic Console</h3>
+            <p>Consulta tu saldo, créditos y consumo de la API de Anthropic.</p>
+            <a href="https://console.anthropic.com/settings/billing" target="_blank" class="btn-primary" style="text-decoration:none;display:inline-block;">💳 Ver facturación</a>
+            &nbsp;
+            <a href="https://console.anthropic.com/settings/usage" target="_blank" class="btn-primary" style="text-decoration:none;display:inline-block;background:#4CAF50;">📊 Ver uso API</a>
+          </div>
             <p>Indexa todos los documentos de Drive. Solo se procesan los nuevos o modificados.</p>
             <button class="btn-primary" onclick="runIndex()" id="indexBtn">🔄 Actualizar índice ahora</button>
             <div id="indexStatus"></div>
@@ -575,6 +585,16 @@ async function subirArchivo() {
 }
 
 // ── ADMIN SISTEMA ─────────────────────────────────────────────────────────────
+async function loadCacheStats() {
+  var el = document.getElementById("cacheStats");
+  el.textContent = "⏳ Consultando…";
+  try {
+    var d = await proxyFetch({ action:"cacheStats" });
+    if (d.error) throw new Error(d.error);
+    el.innerHTML = "⚡ <strong>"+d.total+"</strong> consultas en caché · <strong>"+d.usosTotales+"</strong> usos totales desde caché";
+  } catch(e) { el.textContent = "❌ Error: "+e.message; }
+}
+
 async function limpiarIndice() {
   var btn=document.getElementById("limpiarBtn"), status=document.getElementById("limpiarStatus");
   btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Verificando archivos…</div>";
