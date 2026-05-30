@@ -238,10 +238,16 @@
     <div id="panel-admin" class="panel" style="display:none;">
       <div class="admin-panel">
         <h2>⚙️ Panel de Administración</h2>
-        <div class="tab-bar">
-          <button class="tab active" onclick="showAdminTab('sistema')">🗂 Sistema</button>
-          <button class="tab" onclick="showAdminTab('consumo')">📊 Consumo</button>
-          <button class="tab" onclick="showAdminTab('usuarios')">👥 Usuarios</button>
+        <div class="tab-bar" style="justify-content:space-between;align-items:center;">
+          <div style="display:flex;gap:4px;">
+            <button class="tab active" onclick="showAdminTab('sistema')">🗂 Sistema</button>
+            <button class="tab" onclick="showAdminTab('consumo')">📊 Consumo</button>
+            <button class="tab" onclick="showAdminTab('usuarios')">👥 Usuarios</button>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <a href="https://console.anthropic.com/settings/billing" target="_blank" style="padding:5px 12px;border-radius:6px;border:1px solid #5c3d8f;background:#7c3aed;color:#fff;font-size:12px;text-decoration:none;font-weight:500;">💳 Facturación</a>
+            <a href="https://console.anthropic.com/settings/usage" target="_blank" style="padding:5px 12px;border-radius:6px;border:1px solid #5c3d8f;background:#7c3aed;color:#fff;font-size:12px;text-decoration:none;font-weight:500;">📊 Uso API</a>
+          </div>
         </div>
 
         <!-- Tab Sistema -->
