@@ -138,10 +138,10 @@
 
     <!-- Chat -->
     <div id="panel-chat" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
-      <div style="display:flex;justify-content:flex-end;gap:6px;padding:6px 12px;background:#f8f9fa;border-bottom:0.5px solid #e0e0e0;">
-        <button onclick="copyLast()" class="btn-secondary" title="Copiar última respuesta">📋 Copiar respuesta</button>
-        <button onclick="copyAll()" class="btn-secondary" title="Copiar todo el chat">📋 Copiar todo</button>
-        <button onclick="printChat()" class="btn-secondary" title="Imprimir">🖨️ Imprimir</button>
+      <div style="display:flex;justify-content:flex-start;gap:6px;padding:6px 12px;background:#f8f9fa;border-bottom:0.5px solid #e0e0e0;">
+        <button onclick="copyLast()" style="padding:5px 12px;border-radius:7px;border:1px solid #185FA5;background:#E6F1FB;color:#185FA5;cursor:pointer;font-size:12px;">📋 Copiar respuesta</button>
+        <button onclick="copyAll()" style="padding:5px 12px;border-radius:7px;border:1px solid #185FA5;background:#E6F1FB;color:#185FA5;cursor:pointer;font-size:12px;">📋 Copiar todo</button>
+        <button onclick="printChat()" style="padding:5px 12px;border-radius:7px;border:1px solid #185FA5;background:#E6F1FB;color:#185FA5;cursor:pointer;font-size:12px;">🖨️ Imprimir</button>
       </div>
       <div class="messages" id="messages"></div>
       <div class="input-bar">
