@@ -1,0 +1,73 @@
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)
+
+Copyright (c) 2026 RC (rcscpalma@gmail.com)
+Proyecto: Funcionarios RC – Asistente de Registro Civil
+URL: https://rcscpalma-code.github.io/funcionarios-rc/
+
+═══════════════════════════════════════════════════════════════════════════════
+
+LICENCIA RESUMIDA (versión en español)
+
+Eres libre de:
+  ✅ Usar — utilizar la aplicación libremente
+  ✅ Compartir — copiar y redistribuir el material en cualquier medio o formato
+  ✅ Adaptar — remezclar, transformar y construir a partir del material
+
+Bajo las siguientes condiciones:
+  📌 Atribución (BY) — Debes dar crédito al autor original (RC / rcscpalma@gmail.com),
+     indicar si se han realizado cambios y enlazar a esta licencia.
+  🚫 No Comercial (NC) — No puedes utilizar el material con fines comerciales
+     ni cobrar por el acceso a este software o derivados del mismo sin autorización
+     expresa y por escrito del autor.
+  🔄 CompartirIgual (SA) — Si remezclas, transformas o construyes sobre el material,
+     debes distribuir tu contribución bajo la misma licencia que el original.
+
+El autor se reserva el derecho a otorgar licencias comerciales de forma separada mediante acuerdo escrito.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+FULL LICENSE TEXT (English)
+
+This work is licensed under the Creative Commons
+Attribution-NonCommercial-ShareAlike 4.0 International License.
+
+You are free to:
+  - Share: copy and redistribute the material in any medium or format
+  - Adapt: remix, transform, and build upon the material
+
+Under the following terms:
+  - Attribution: You must give appropriate credit to the original author
+    (RC / rcscpalma@gmail.com), provide a link to the license, and indicate
+    if changes were made.
+  - NonCommercial: You may not use the material for commercial purposes,
+    including but not limited to: charging for access, selling derived works,
+    or incorporating this software into paid products or services without
+    express written permission from the author.
+  - ShareAlike: If you remix, transform, or build upon the material, you must
+    distribute your contributions under the same license as the original.
+
+No additional restrictions: You may not apply legal terms or technological
+measures that legally restrict others from doing anything the license permits.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+AVISO ESPECÍFICO SOBRE ESTE PROYECTO
+
+Este proyecto incluye:
+  - Código fuente (index.html, Apps Script, indexador_rc.py)
+  - Base de conocimiento jurídico indexada (resoluciones DGRN/DGSJFP)
+  - Estructura de datos y esquema de la base de datos
+
+Queda expresamente prohibido:
+  ❌ Cobrar por el acceso a esta aplicación o a derivados de la misma
+  ❌ Utilizar la base de conocimiento jurídico indexada con fines lucrativos
+     sin autorización del autor
+  ❌ Presentar este trabajo como propio sin atribución al autor original
+
+Para solicitar una licencia comercial o de uso especial, contacta con:
+  rcscpalma@gmail.com
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Texto completo de la licencia CC BY-NC-SA 4.0:
+https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
