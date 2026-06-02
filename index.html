@@ -309,7 +309,11 @@
           <div class="admin-card">
             <h3>⏰ Actualización automática semanal</h3>
             <p>Activa un trigger que actualiza el índice cada lunes a las 3:00 AM automáticamente.</p>
-            <button class="btn-primary" onclick="setupTrigger()" id="triggerBtn">✅ Activar actualización semanal</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn-primary" onclick="activarTrigger()" id="triggerBtnOn">✅ Activar</button>
+              <button class="btn-primary" onclick="desactivarTrigger()" id="triggerBtnOff" style="background:#c62828;">❌ Desactivar</button>
+              <button class="btn-secondary" onclick="checkTrigger()" id="triggerBtnCheck">🔍 Ver estado</button>
+            </div>
             <div id="triggerStatus"></div>
           </div>
           <div class="admin-card">
@@ -642,13 +646,42 @@ async function runIndex() {
   btn.disabled=false;
 }
 
-async function setupTrigger() {
-  var btn=document.getElementById("triggerBtn"), status=document.getElementById("triggerStatus");
-  btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Configurando…</div>";
+async function activarTrigger() {
+  var status=document.getElementById("triggerStatus");
+  var btn=document.getElementById("triggerBtnOn");
+  btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Activando…</div>";
   try {
     var d=await proxyFetch({action:"setupTrigger"});
     if(d.error) throw new Error(d.error);
-    status.innerHTML="<div class='status-msg status-ok'>✅ Trigger semanal activado.</div>";
+    status.innerHTML="<div class='status-msg status-ok'>✅ Trigger semanal activado. Se ejecutará cada lunes a las 3:00 AM.</div>";
+  } catch(e){status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>";}
+  btn.disabled=false;
+}
+
+async function desactivarTrigger() {
+  var status=document.getElementById("triggerStatus");
+  var btn=document.getElementById("triggerBtnOff");
+  btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Desactivando…</div>";
+  try {
+    var d=await proxyFetch({action:"eliminarTrigger"});
+    if(d.error) throw new Error(d.error);
+    status.innerHTML="<div class='status-msg status-ok'>✅ Trigger eliminado. Ya no se actualizará automáticamente.</div>";
+  } catch(e){status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>";}
+  btn.disabled=false;
+}
+
+async function checkTrigger() {
+  var status=document.getElementById("triggerStatus");
+  var btn=document.getElementById("triggerBtnCheck");
+  btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Consultando…</div>";
+  try {
+    var d=await proxyFetch({action:"estadoTrigger"});
+    if(d.error) throw new Error(d.error);
+    if(d.activo) {
+      status.innerHTML="<div class='status-msg status-ok'>✅ Trigger ACTIVO — se ejecuta cada lunes a las 3:00 AM.</div>";
+    } else {
+      status.innerHTML="<div class='status-msg status-err'>⚠️ Trigger NO activo — la actualización automática está desactivada.</div>";
+    }
   } catch(e){status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>";}
   btn.disabled=false;
 }
