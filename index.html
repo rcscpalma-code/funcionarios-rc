@@ -228,6 +228,7 @@
     <div class="mode-bar">
       <button class="mode-btn active" id="btn-chat" onclick="setMode('chat')">💬 Chat</button>
       <button class="mode-btn" id="btn-drive" onclick="setMode('drive')">📁 Documentos</button>
+      <button class="mode-btn" id="btn-historial" onclick="setMode('historial')">📋 Historial</button>
       <button class="mode-btn" id="btn-admin" onclick="setMode('admin')" style="display:none;margin-left:auto;background:#fff3e0;border-color:#FF9800;color:#E65100;">⚙️ Admin</button>
     </div>
 
@@ -244,6 +245,21 @@
       <div class="input-bar">
         <textarea id="chatInput" rows="2" style="flex:1" placeholder="Escribe tu consulta… (Enter para enviar, Shift+Enter para nueva línea)" onkeydown="handleChatKey(event)"></textarea>
         <button class="send-btn" onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+
+    <!-- Historial -->
+    <div id="panel-historial" class="panel" style="display:none;padding:16px;">
+      <div id="historialView">
+        <div style="margin-bottom:12px;">
+          <input type="text" id="historialSearch" placeholder="🔍 Buscar en el historial…" oninput="filtrarHistorial()"
+            style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;"/>
+        </div>
+        <div id="historialLista"></div>
+      </div>
+      <div id="historialDetalle" style="display:none;">
+        <button onclick="volverHistorial()" style="margin-bottom:12px;padding:6px 14px;border-radius:7px;border:1px solid #185FA5;background:#E6F1FB;color:#185FA5;cursor:pointer;font-size:13px;font-weight:600;">← Volver</button>
+        <div id="historialDetalleContenido"></div>
       </div>
     </div>
 
@@ -429,7 +445,7 @@ async function proxyFetch(params) {
 // ── MODO ──────────────────────────────────────────────────────────────────────
 function setMode(m) {
   mode = m;
-  ["chat","drive","admin"].forEach(function(id){
+  ["chat","drive","historial","admin"].forEach(function(id){
     var p = document.getElementById("panel-"+id);
     var b = document.getElementById("btn-"+id);
     if (p) p.style.display = "none";
@@ -441,6 +457,118 @@ function setMode(m) {
   if (btn) btn.classList.add("active");
   updateContextBar();
   if (m==="admin") showAdminTab("sistema");
+  if (m==="historial") {
+    document.getElementById("historialDetalle").style.display = "none";
+    document.getElementById("historialView").style.display = "block";
+    document.getElementById("historialSearch").value = historialFiltroActual;
+    if (!historialCache.length) {
+      cargarHistorialRemoto();
+    } else {
+      renderHistorialLista(historialFiltroActual);
+    }
+  }
+}
+
+// ── HISTORIAL SINCRONIZADO ────────────────────────────────────────────────────
+var historialCache = [];
+var historialFiltroActual = "";
+
+async function guardarEnHistorial(pregunta, respuesta, docsUsados) {
+  if (!currentUser) return;
+  try {
+    await proxyFetch({
+      action: "guardarHistorial",
+      email: currentUser.email,
+      nombre: currentUser.name,
+      pregunta: pregunta,
+      respuesta: respuesta,
+      docs: docsUsados || ""
+    });
+    // Añadir también a la caché local para no recargar
+    historialCache.unshift({
+      fecha: new Date().toLocaleString("es-ES"),
+      pregunta: pregunta,
+      respuesta: respuesta,
+      docs: docsUsados || ""
+    });
+  } catch(e) {}
+}
+
+async function cargarHistorialRemoto() {
+  if (!currentUser) return;
+  var lista = document.getElementById("historialLista");
+  lista.innerHTML = "<div style='color:#888;font-size:13px;padding:20px 0;text-align:center;'>⏳ Cargando historial…</div>";
+  try {
+    var d = await proxyFetch({ action: "obtenerHistorial", email: currentUser.email });
+    if (d.error) throw new Error(d.error);
+    historialCache = d.historial || [];
+    renderHistorialLista(historialFiltroActual);
+  } catch(e) {
+    lista.innerHTML = "<div style='color:#c00;font-size:13px;padding:20px 0;text-align:center;'>❌ Error al cargar historial: "+e.message+"</div>";
+  }
+}
+
+function renderHistorialLista(query) {
+  historialFiltroActual = query || "";
+  var lista = document.getElementById("historialLista");
+  var hist = historialCache;
+  if (!hist.length) {
+    lista.innerHTML = "<div style='color:#888;font-size:13px;padding:20px 0;text-align:center;'>No hay consultas guardadas todavía.</div>";
+    return;
+  }
+  var filtrados = query ? hist.filter(function(h) {
+    var q = query.toLowerCase();
+    return h.pregunta.toLowerCase().includes(q) || h.respuesta.toLowerCase().includes(q);
+  }) : hist;
+  if (!filtrados.length) {
+    lista.innerHTML = "<div style='color:#888;font-size:13px;padding:20px 0;text-align:center;'>No hay resultados para «"+query+"».</div>";
+    return;
+  }
+  lista.innerHTML = filtrados.map(function(h, idx) {
+    var resumen = h.pregunta.length > 100 ? h.pregunta.substring(0, 100) + "…" : h.pregunta;
+    var highlight = resumen;
+    if (query) {
+      try {
+        highlight = resumen.split(query).join("<mark style='background:#fff3cd;'>"+query+"</mark>");
+      } catch(e) {}
+    }
+    return "<div onclick='verHistorialDetalle("+idx+")' style='background:#fff;border:1px solid #e0e0e0;border-radius:9px;padding:12px;margin-bottom:8px;cursor:pointer;'>" +
+      "<div style='font-size:11px;color:#aaa;margin-bottom:4px;'>📅 "+h.fecha+"</div>" +
+      "<div style='font-size:13px;color:#1a1a1a;'>"+highlight+"</div>" +
+      "</div>";
+  }).join("");
+}
+
+function filtrarHistorial() {
+  var q = document.getElementById("historialSearch").value.trim();
+  renderHistorialLista(q);
+}
+
+function verHistorialDetalle(idx) {
+  // Buscar dentro de los filtrados si hay búsqueda activa
+  var hist = historialCache;
+  var filtrados = historialFiltroActual ? hist.filter(function(h) {
+    var q = historialFiltroActual.toLowerCase();
+    return h.pregunta.toLowerCase().includes(q) || h.respuesta.toLowerCase().includes(q);
+  }) : hist;
+  var item = filtrados[idx];
+  if (!item) return;
+  document.getElementById("historialView").style.display = "none";
+  document.getElementById("historialDetalle").style.display = "block";
+  var html = "<div style='background:#fff;border:1px solid #e0e0e0;border-radius:9px;padding:16px;'>" +
+    "<div style='font-size:11px;color:#aaa;margin-bottom:8px;'>📅 "+item.fecha+"</div>" +
+    "<div style='background:#185FA5;color:#fff;border-radius:12px 12px 4px 12px;padding:10px 14px;font-size:14px;margin-bottom:10px;white-space:pre-wrap;'>"+item.pregunta.replace(/</g,"&lt;")+"</div>" +
+    "<div style='background:#f8f9fa;border:0.5px solid #e0e0e0;border-radius:12px 12px 12px 4px;padding:10px 14px;font-size:14px;'>"+renderMarkdown(item.respuesta)+"</div>" +
+    (item.docs ? "<div style='font-size:11px;color:#888;margin-top:6px;padding:3px 8px;background:#f8f9fa;border-radius:5px;border:1px solid #e0e0e0;'>📚 "+item.docs+"</div>" : "") +
+    "</div>";
+  document.getElementById("historialDetalleContenido").innerHTML = html;
+}
+
+function volverHistorial() {
+  document.getElementById("historialDetalle").style.display = "none";
+  document.getElementById("historialView").style.display = "block";
+  document.getElementById("historialSearch").value = historialFiltroActual;
+  renderHistorialLista(historialFiltroActual);
 }
 
 function updateContextBar() {
@@ -530,6 +658,7 @@ async function sendMessage() {
   try {
     var result = await callBridge(messages);
     messages.push({ role:"assistant", content:result.reply, docsUsados:result.docsUsados });
+    guardarEnHistorial(text, result.reply, result.docsUsados);
     loadMiConsumo();
   } catch(e) { messages.push({ role:"assistant", content:"Error: "+e.message }); }
   loading=false; renderMessages();
