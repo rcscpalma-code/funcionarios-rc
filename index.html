@@ -433,10 +433,10 @@ async function proxyFetch(params) {
   var gets = ["list","indexInfo","consumoTotal","consumoDiario","consumoUsuario","miConsumo","listFolders"];
   if (gets.includes(params.action)) {
     var qs = new URLSearchParams(params).toString();
-    var r = await fetch(PROXY_URL + "?url=" + encodeURIComponent(BRIDGE_URL + "?" + qs));
+    var r = await fetch(BRIDGE_URL + "?" + qs);
     return r.json();
   }
-  var r2 = await fetch(PROXY_URL + "?url=" + encodeURIComponent(BRIDGE_URL), {
+  var r2 = await fetch(BRIDGE_URL, {
     method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(params)
   });
   return r2.json();
