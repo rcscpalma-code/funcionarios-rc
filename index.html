@@ -17,6 +17,16 @@
         .replace(/\*(.+?)\*/g,"$1").replace(/`(.+?)`/g,"$1")
         .replace(/^[-•] /gm,"• ").trim();
     }
+
+    function stripMarkdownWithDocs(content, docsUsados) {
+      var text = stripMarkdown(content);
+      if (docsUsados) {
+        var docsPlain = docsUsados.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, "$1 ($2)");
+        text += "\n\n📚 " + docsPlain;
+      }
+      return text;
+    }
+
     function showCopyToast(msg) {
       var t = document.createElement("div");
       t.textContent = msg;
@@ -24,6 +34,7 @@
       document.body.appendChild(t);
       setTimeout(function(){ t.remove(); }, 2500);
     }
+
     function fallbackCopy(text) {
       var el = document.createElement("textarea");
       el.value = text; el.style.cssText = "position:fixed;opacity:0;";
@@ -32,23 +43,31 @@
       catch(e) { showCopyToast("❌ Error al copiar"); }
       document.body.removeChild(el);
     }
+
     function doCopy(text) {
       if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(text).then(function(){ showCopyToast("✅ Copiado al portapapeles"); }).catch(function(){ fallbackCopy(text); });
       } else { fallbackCopy(text); }
     }
+
     function copyMessage(idx) {
       var m = messages[idx];
       if (!m) return;
-      doCopy(stripMarkdown(m.content));
+      doCopy(stripMarkdownWithDocs(m.content, m.docsUsados));
     }
+
     function copyAll() {
       if (!messages.length) { showCopyToast("❌ El chat está vacío"); return; }
       var text = messages.map(function(m){
-        return (m.role==="user"?"👤 Consulta":"⚖️ Respuesta") + ":\n" + stripMarkdown(m.content);
+        var prefix = m.role==="user"?"👤 Consulta":"⚖️ Respuesta";
+        var content = m.role==="assistant"
+          ? stripMarkdownWithDocs(m.content, m.docsUsados)
+          : stripMarkdown(m.content);
+        return prefix + ":\n" + content;
       }).join("\n\n---\n\n");
       doCopy(text);
     }
+
     function printChat() {
       if (!messages.length) { showCopyToast("❌ El chat está vacío"); return; }
       var content = messages.map(function(m){
@@ -64,6 +83,7 @@
       win.document.close();
     }
   </script>
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; height: 100vh; display: flex; flex-direction: column; }
