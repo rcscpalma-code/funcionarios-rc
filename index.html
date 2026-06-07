@@ -430,19 +430,18 @@ function logout() {
 
 // ── PROXY ─────────────────────────────────────────────────────────────────────
 async function proxyFetch(params) {
-//  var gets = ["list","indexInfo","consumoTotal","consumoDiario","consumoUsuario","miConsumo","listFolders","chat","guardarHistorial","obtenerHistorial","limpiarIndice","subirArchivo","setupTrigger","eliminarTrigger","estadoTrigger","index","cacheStats"];
-    var gets = ["list","indexInfo","consumoTotal","consumoDiario","consumoUsuario","miConsumo","listFolders","chat","obtenerHistorial","estadoTrigger","cacheStats"];
+  var gets = ["list","indexInfo","consumoTotal","consumoDiario","consumoUsuario","miConsumo","listFolders","obtenerHistorial","estadoTrigger","cacheStats","indexInfo"];
   if (gets.includes(params.action)) {
     var qs = new URLSearchParams(params).toString();
     var r = await fetch(BRIDGE_URL + "?" + qs);
     return r.json();
   }
-  var r2 = await fetch(BRIDGE_URL, {
+  // POST van por el proxy Cloudflare para evitar CORS
+  var r2 = await fetch(PROXY_URL, {
     method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(params)
   });
   return r2.json();
 }
-
 // ── MODO ──────────────────────────────────────────────────────────────────────
 function setMode(m) {
   mode = m;
