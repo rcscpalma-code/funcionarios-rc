@@ -705,12 +705,13 @@ function renderMessages() {
   var el = document.getElementById("messages");
   el.innerHTML = messages.map(function(m){
     var idx = messages.indexOf(m);
+var esRespuestaReal = m.role==="assistant" && idx > 0;
     var bubbleContent = m.role==="assistant"
       ? "<div class='bubble-hover-wrap'>" +
         "<div class='bubble assistant'>" + renderMarkdown(m.content) + "</div>" +
         "<div class='bubble-action-btns'>" +
         "<button class='bubble-copy-btn' onclick='copyMessage("+idx+")' title='Copiar respuesta'>📋</button>" +
-        "<button class='bubble-error-btn' onclick='reportarErrorChat("+idx+")' title='Reportar error'>⚠️</button>" +
+        (esRespuestaReal ? "<button class='bubble-error-btn' onclick='reportarErrorChat("+idx+")' title='Reportar error'>⚠️</button>" : "") +
         "</div>" +
         "</div>"
       : "<div class='bubble user'>" + m.content.replace(/</g,"&lt;") + "</div>";
