@@ -13,43 +13,7 @@
 
     function stripMarkdown(text) {
       return (text||"")
-        .replace(/#{1,3} /g,"").replace(/\*\*(.+?)\*\*/g,"$1")async function sendMessage() {
-  var input = document.getElementById("chatInput");
-  var text = input.value.trim();
-  if (!text||loading) return;
-  var textoOriginal = text;
-  messages.push({ role:"user", content:text });
-  input.value=""; loading=true;
-  document.getElementById("cancelBtn").style.display = "inline-block";
-  abortController = new AbortController();
-  renderMessages();
-  try {
-    var result = await callBridge(messages, abortController.signal);
-    if (result) {
-      messages.push({ role:"assistant", content:result.reply, docsUsados:result.docsUsados });
-      guardarEnHistorial(text, result.reply, result.docsUsados);
-      loadMiConsumo();
-    }
-  } catch(e) {
-    if (e.name === "AbortError") {
-      // Cancelado por el usuario — deshacer
-      messages.pop(); // quitar la pregunta del usuario
-      input.value = textoOriginal; // restaurar texto
-    } else {
-      messages.push({ role:"assistant", content:"Error: "+e.message });
-    }
-  }
-  loading=false;
-  abortController = null;
-  document.getElementById("cancelBtn").style.display = "none";
-  renderMessages();
-}
-
-function cancelarConsulta() {
-  if (abortController) {
-    abortController.abort();
-  }
-}
+        .replace(/#{1,3} /g,"").replace(/\*\*(.+?)\*\*/g,"$1")
         .replace(/\*(.+?)\*/g,"$1").replace(/`(.+?)`/g,"$1")
         .replace(/^[-•] /gm,"• ").trim();
     }
@@ -70,7 +34,6 @@ function cancelarConsulta() {
       document.body.appendChild(t);
       setTimeout(function(){ t.remove(); }, 2500);
     }
-
     function fallbackCopy(text) {
       var el = document.createElement("textarea");
       el.value = text; el.style.cssText = "position:fixed;opacity:0;";
@@ -79,19 +42,16 @@ function cancelarConsulta() {
       catch(e) { showCopyToast("❌ Error al copiar"); }
       document.body.removeChild(el);
     }
-
     function doCopy(text) {
       if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(text).then(function(){ showCopyToast("✅ Copiado al portapapeles"); }).catch(function(){ fallbackCopy(text); });
       } else { fallbackCopy(text); }
     }
-
     function copyMessage(idx) {
       var m = messages[idx];
       if (!m) return;
       doCopy(stripMarkdownWithDocs(m.content, m.docsUsados));
     }
-
     function copyAll() {
       if (!messages.length) { showCopyToast("❌ El chat está vacío"); return; }
       var text = messages.map(function(m){
@@ -103,7 +63,6 @@ function cancelarConsulta() {
       }).join("\n\n---\n\n");
       doCopy(text);
     }
-
     function printChat() {
       if (!messages.length) { showCopyToast("❌ El chat está vacío"); return; }
       var content = messages.map(function(m){
@@ -119,7 +78,6 @@ function cancelarConsulta() {
       win.document.close();
     }
   </script>
-
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; height: 100vh; display: flex; flex-direction: column; }
@@ -141,9 +99,9 @@ function cancelarConsulta() {
     .messages { flex: 1; overflow-y: auto; padding: 16px 16px 8px; background: #f8f9fa; }
     .bubble-wrap { display: flex; margin-bottom: 12px; }
     .bubble-wrap.user { justify-content: flex-end; }
-    .avatar { width: 28px; height: 28px; border-radius: 50%; background: #E6F1FB; display: flex; align-items: center; justify-content: center; margin-right: 8px; flex-shrink: 0; align-self: flex-end; font-size: 13px; }
-    .bubble { max-width: 78%; padding: 10px 14px; font-size: 14px; line-height: 1.6; }
-    .bubble.user { border-radius: 16px 16px 4px 16px; background: #185FA5; color: #fff; white-space: pre-wrap; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; background: #E6F1FB; display: flex; align-items: center; justify-content: center; margin-right: 8px; flex-shrink: 0; align-self: flex-start; margin-top: 2px; font-size: 13px; }
+    .bubble { padding: 10px 14px; font-size: 14px; line-height: 1.6; }
+    .bubble.user { border-radius: 16px 16px 4px 16px; background: #185FA5; color: #fff; white-space: pre-wrap; max-width: 78%; }
     .bubble.assistant { border-radius: 16px 16px 16px 4px; background: #fff; color: #1a1a1a; border: 0.5px solid #e0e0e0; }
     .bubble.assistant h1,.bubble.assistant h2,.bubble.assistant h3 { margin: 8px 0 4px; }
     .bubble.assistant h1 { font-size: 15px; }
@@ -202,30 +160,52 @@ function cancelarConsulta() {
     .tab-bar { display: flex; gap: 4px; margin-bottom: 12px; }
     .tab { padding: 5px 12px; border-radius: 6px; border: 1px solid #ddd; background: transparent; font-size: 12px; cursor: pointer; color: #666; }
     .tab.active { background: #E6F1FB; border-color: #185FA5; color: #185FA5; font-weight: 500; }
-    /* ── Botones del chat ── */
     .chat-btn { padding: 6px 14px; border-radius: 7px; border: 1.5px solid #185FA5; background: #E6F1FB; color: #185FA5; cursor: pointer; font-size: 12px; font-weight: 600; }
     .chat-btn:active { opacity: 0.75; }
     @media (prefers-color-scheme: dark) {
       .chat-btn { background: #1a3a5c; color: #90CAF9; border-color: #90CAF9; }
     }
-    /* ── Hover copy en burbujas ── */
-    .bubble-hover-wrap { position: relative; max-width: 78%; }
-    .bubble-copy-btn {
-      display: none;
-      position: absolute;
-      top: 6px;
-      right: 8px;
-      background: rgba(255,255,255,0.9);
-      border: 1px solid #e0e0e0;
-      border-radius: 5px;
-      padding: 2px 6px;
-      cursor: pointer;
-      font-size: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      z-index: 10;
-      line-height: 1.4;
+    /* ── Botones de acción en burbujas ── */
+    .bubble-hover-wrap {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 8px;
+      max-width: 85%;
     }
-    .bubble-hover-wrap:hover .bubble-copy-btn { display: block; }
+    .bubble-action-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+      padding-top: 4px;
+    }
+    .bubble-copy-btn {
+      background: #fff;
+      border: 1.5px solid #ddd;
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      color: #555;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      transition: all 0.15s;
+    }
+    .bubble-copy-btn:hover { border-color: #185FA5; color: #185FA5; box-shadow: 0 2px 6px rgba(24,95,165,0.15); }
+    .bubble-error-btn {
+      background: #fff;
+      border: 1.5px solid #ddd;
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      color: #555;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      transition: all 0.15s;
+    }
+    .bubble-error-btn:hover { border-color: #c62828; color: #c62828; box-shadow: 0 2px 6px rgba(198,40,40,0.15); }
     /* ── Botón reportar error en historial ── */
     .btn-error { padding: 4px 10px; border-radius: 6px; border: 1px solid #ffcdd2; background: #fff8f8; color: #c62828; cursor: pointer; font-size: 11px; }
     .btn-error:hover { background: #ffebee; }
@@ -291,7 +271,6 @@ function cancelarConsulta() {
         <button class="chat-btn" onclick="copyAll()">📋 Copiar todo</button>
         <button class="chat-btn" onclick="printChat()">🖨️ Imprimir</button>
       </div>
-      
       <div class="messages" id="messages"></div>
       <div class="input-bar">
         <textarea id="chatInput" rows="2" style="flex:1" placeholder="Escribe tu consulta… (Enter para enviar, Shift+Enter para nueva línea)" onkeydown="handleChatKey(event)"></textarea>
@@ -587,13 +566,13 @@ async function reportarError(idx, event) {
   }) : hist;
   var item = filtrados[idx];
   if (!item) return;
+  if (!confirm("¿Confirmas que esta respuesta contiene un error y quieres reportarla?")) return;
   var nota = prompt("Describe brevemente el error (opcional):");
-  if (nota === null) return; // cancelado
+  if (nota === null) return;
   try {
     var d = await proxyFetch({ action:"marcarError", email:currentUser.email, fecha:item.fecha, nota:nota||"" });
     if (d.ok) {
       showCopyToast("✅ Error reportado. Esta respuesta ya no aparecerá en futuras búsquedas.");
-      // Eliminar de la caché local
       var idxGlobal = hist.indexOf(item);
       if (idxGlobal >= 0) hist.splice(idxGlobal, 1);
       renderHistorialLista(historialFiltroActual);
@@ -601,6 +580,30 @@ async function reportarError(idx, event) {
       showCopyToast("❌ Error al reportar: " + (d.error||"desconocido"));
     }
   } catch(e) { showCopyToast("❌ Error al reportar: " + e.message); }
+}
+
+async function reportarErrorChat(idx) {
+  var m = messages[idx];
+  if (!m || m.role !== "assistant") return;
+  if (!confirm("¿Confirmas que esta respuesta contiene un error y quieres reportarla?")) return;
+  var nota = prompt("Describe brevemente el error (opcional):");
+  if (nota === null) return;
+  var pregunta = "";
+  for (var i = idx - 1; i >= 0; i--) {
+    if (messages[i].role === "user") { pregunta = messages[i].content; break; }
+  }
+  try {
+    var d = await proxyFetch({
+      action: "marcarError",
+      email: currentUser.email,
+      fecha: "",
+      nota: nota || "",
+      pregunta: pregunta.substring(0, 500)
+    });
+    showCopyToast("✅ Error reportado. Gracias por la corrección.");
+  } catch(e) {
+    showCopyToast("❌ Error al reportar: " + e.message);
+  }
 }
 
 function verHistorialDetalle(idx) {
@@ -672,7 +675,6 @@ function clearSelection() { selectedDocs=[]; renderFiles(); updateContextBar(); 
 
 // ── RENDER MARKDOWN ───────────────────────────────────────────────────
 function renderMarkdown(text) {
-  // Extraer enlaces ANTES de escapar HTML
   var links = [];
   text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, function(match, label, url) {
     var placeholder = "%%LINK" + links.length + "%%";
@@ -691,7 +693,6 @@ function renderMarkdown(text) {
     .replace(/(<li>.*<\/li>)/gs,"<ul>$1</ul>")
     .replace(/\n{2,}/g,"<br><br>")
     .replace(/\n/g,"<br>");
-  // Restaurar enlaces
   links.forEach(function(link, i) { text = text.replace("%%LINK" + i + "%%", link); });
   return text;
 }
@@ -704,7 +705,10 @@ function renderMessages() {
     var bubbleContent = m.role==="assistant"
       ? "<div class='bubble-hover-wrap'>" +
         "<div class='bubble assistant'>" + renderMarkdown(m.content) + "</div>" +
-        "<button class='bubble-copy-btn' onclick='copyMessage("+idx+")' title='Copiar'>📋</button>" +
+        "<div class='bubble-action-btns'>" +
+        "<button class='bubble-copy-btn' onclick='copyMessage("+idx+")' title='Copiar respuesta'>📋</button>" +
+        "<button class='bubble-error-btn' onclick='reportarErrorChat("+idx+")' title='Reportar error'>⚠️</button>" +
+        "</div>" +
         "</div>"
       : "<div class='bubble user'>" + m.content.replace(/</g,"&lt;") + "</div>";
     return "<div class='bubble-wrap "+m.role+"'>" +
@@ -744,9 +748,8 @@ async function sendMessage() {
     }
   } catch(e) {
     if (e.name === "AbortError") {
-      // Cancelado por el usuario — deshacer
-      messages.pop(); // quitar la pregunta del usuario
-      input.value = textoOriginal; // restaurar texto
+      messages.pop();
+      input.value = textoOriginal;
     } else {
       messages.push({ role:"assistant", content:"Error: "+e.message });
     }
@@ -758,9 +761,7 @@ async function sendMessage() {
 }
 
 function cancelarConsulta() {
-  if (abortController) {
-    abortController.abort();
-  }
+  if (abortController) abortController.abort();
 }
 
 function handleChatKey(e) { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} }
