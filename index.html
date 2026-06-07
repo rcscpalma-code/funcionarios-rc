@@ -49,6 +49,12 @@
       doCopy(stripMarkdown(last.content));
     }
 
+    function copyMessage(idx) {
+      var m = messages[idx];
+      if (!m) return;
+      doCopy(stripMarkdown(m.content));
+    }
+
     function copyAll() {
       if (!messages.length) { showCopyToast("❌ El chat está vacío"); return; }
       var text = messages.map(function(m){
@@ -177,6 +183,29 @@
         border-color: #90CAF9;
       }
     }
+
+ .bubble-hover-wrap {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+  }
+  .bubble-copy-btn {
+      display: none;
+      position: absolute;
+      top: 6px;
+      right: -32px;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 3px 6px;
+      cursor: pointer;
+      font-size: 13px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      z-index: 10;
+    }
+  .bubble-hover-wrap:hover .bubble-copy-btn {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -237,8 +266,7 @@
     <!-- Chat -->
     <div id="panel-chat" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
       <div style="display:flex;justify-content:flex-start;gap:6px;padding:6px 12px;background:#f8f9fa;border-bottom:0.5px solid #e0e0e0;">
-        <button class="chat-btn" onclick="copyLast()">📋 Copiar respuesta</button>
-        <button class="chat-btn" onclick="copyAll()">📋 Copiar todo</button>
+        <button class="chat-btn" onclick="copyAll()">📋 Copiar toda la conversación</button>
         <button class="chat-btn" onclick="printChat()">🖨️ Imprimir</button>
       </div>
       <div class="messages" id="messages"></div>
@@ -647,9 +675,18 @@ function renderMarkdown(text) {
 function renderMessages() {
   var el = document.getElementById("messages");
   el.innerHTML = messages.map(function(m){
-    return "<div class='bubble-wrap "+m.role+"'>"+(m.role==="assistant"?"<div class='avatar'>⚖️</div>":"")+
-      "<div><div class='bubble "+m.role+"'>"+(m.role==="assistant"?renderMarkdown(m.content):m.content.replace(/</g,"&lt;"))+"</div>"+
-      (m.docsUsados?"<div class='docs-used'>📚 "+renderMarkdown(m.docsUsados)+"</div>":"")
+var idx = messages.indexOf(m);
+    var bubbleContent = m.role==="assistant"
+      ? "<div class='bubble-hover-wrap'>" +
+        "<div class='bubble assistant'>" + renderMarkdown(m.content) + "</div>" +
+        "<button class='bubble-copy-btn' onclick='copyMessage(" + idx + ")' title='Copiar'>📋</button>" +
+        "</div>"
+      : "<div class='bubble user'>" + m.content.replace(/</g,"&lt;") + "</div>";
+    return "<div class='bubble-wrap "+m.role+"'>" +
+      (m.role==="assistant"?"<div class='avatar'>⚖️</div>":"") +
+      "<div>" + bubbleContent +
+      (m.docsUsados?"<div class='docs-used'>📚 "+renderMarkdown(m.docsUsados)+"</div>":"") +
+      "</div></div>";
   }).join("");
   if (loading) el.innerHTML += "<div class='typing'><div class='avatar'>⚖️</div><div class='dots'><div class='dot'></div><div class='dot'></div><div class='dot'></div></div></div>";
   el.scrollTop = el.scrollHeight;
