@@ -618,6 +618,7 @@ function clearSelection() { selectedDocs=[]; renderFiles(); updateContextBar(); 
 function renderMarkdown(text) {
   return text
     .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,"<a href='$2' target='_blank' style='color:#185FA5;text-decoration:underline;'>$1</a>")
     .replace(/^### (.+)$/gm,"<h3>$1</h3>")
     .replace(/^## (.+)$/gm,"<h2>$1</h2>")
     .replace(/^# (.+)$/gm,"<h1>$1</h1>")
@@ -636,7 +637,7 @@ function renderMessages() {
   el.innerHTML = messages.map(function(m){
     return "<div class='bubble-wrap "+m.role+"'>"+(m.role==="assistant"?"<div class='avatar'>⚖️</div>":"")+
       "<div><div class='bubble "+m.role+"'>"+(m.role==="assistant"?renderMarkdown(m.content):m.content.replace(/</g,"&lt;"))+"</div>"+
-      (m.docsUsados?"<div class='docs-used'>📚 "+m.docsUsados+"</div>":"")+"</div></div>";
+      (m.docsUsados?"<div class='docs-used'>📚 "+renderMarkdown(m.docsUsados)+"</div>":"")
   }).join("");
   if (loading) el.innerHTML += "<div class='typing'><div class='avatar'>⚖️</div><div class='dots'><div class='dot'></div><div class='dot'></div><div class='dot'></div></div></div>";
   el.scrollTop = el.scrollHeight;
