@@ -430,7 +430,7 @@ function logout() {
 
 // ── PROXY ─────────────────────────────────────────────────────────────────────
 async function proxyFetch(params) {
-  var gets = ["list","indexInfo","consumoTotal","consumoDiario","consumoUsuario","miConsumo","listFolders"];
+  var gets = ["list","indexInfo","consumoTotal","consumoDiario","consumoUsuario","miConsumo","listFolders","chat","guardarHistorial","obtenerHistorial","limpiarIndice","subirArchivo","setupTrigger","eliminarTrigger","estadoTrigger","index","cacheStats"];
   if (gets.includes(params.action)) {
     var qs = new URLSearchParams(params).toString();
     var r = await fetch(BRIDGE_URL + "?" + qs);
