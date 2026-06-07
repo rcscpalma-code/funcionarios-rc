@@ -460,19 +460,11 @@ function logout() {
 
 // ── PROXY ─────────────────────────────────────────────────────────────
 async function proxyFetch(params, signal) {
-  var gets = ["list","indexInfo","consumoTotal","consumoDiario","consumoUsuario","miConsumo","listFolders","obtenerHistorial","estadoTrigger","cacheStats"];
-  if (gets.includes(params.action)) {
-    var qs = new URLSearchParams(params).toString();
-    var r = await fetch(BRIDGE_URL + "?" + qs, signal ? { signal } : {});
-    return r.json();
-  }
-  var r2 = await fetch(PROXY_URL, {
-    method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(params),
-    ...(signal ? { signal } : {})
-  });
-  return r2.json();
+  var qs = new URLSearchParams(params).toString();
+  var r = await fetch(BRIDGE_URL + "?" + qs, signal ? { signal } : {});
+  return r.json();
 }
-
+  
 // ── MODO ──────────────────────────────────────────────────────────────
 function setMode(m) {
   mode = m;
