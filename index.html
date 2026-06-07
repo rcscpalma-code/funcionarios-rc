@@ -254,7 +254,9 @@
       <div style="display:flex;justify-content:flex-start;gap:6px;padding:6px 12px;background:#f8f9fa;border-bottom:0.5px solid #e0e0e0;">
         <button class="chat-btn" onclick="copyAll()">📋 Copiar todo</button>
         <button class="chat-btn" onclick="printChat()">🖨️ Imprimir</button>
+        <button class="chat-btn" id="cancelBtn" onclick="cancelarConsulta()" style="display:none;background:#fff0f0;border-color:#c62828;color:#c62828;">✕ Cancelar</button>
       </div>
+      
       <div class="messages" id="messages"></div>
       <div class="input-bar">
         <textarea id="chatInput" rows="2" style="flex:1" placeholder="Escribe tu consulta… (Enter para enviar, Shift+Enter para nueva línea)" onkeydown="handleChatKey(event)"></textarea>
@@ -386,6 +388,7 @@ const SESSION_KEY = "frc_session";
 const SESSION_TTL = 60 * 60 * 1000;
 
 var mode = "chat", files = [], selectedDocs = [], loading = false;
+var abortController = null;
 var chartDiarioInst = null, chartUsuarioInst = null, allUsuarios = [];
 var selectedFolderId = null, folderStack = [];
 
@@ -687,15 +690,38 @@ async function sendMessage() {
   var input = document.getElementById("chatInput");
   var text = input.value.trim();
   if (!text||loading) return;
+  var textoOriginal = text;
   messages.push({ role:"user", content:text });
-  input.value=""; loading=true; renderMessages();
+  input.value=""; loading=true;
+  document.getElementById("cancelBtn").style.display = "inline-block";
+  abortController = new AbortController();
+  renderMessages();
   try {
-    var result = await callBridge(messages);
-    messages.push({ role:"assistant", content:result.reply, docsUsados:result.docsUsados });
-    guardarEnHistorial(text, result.reply, result.docsUsados);
-    loadMiConsumo();
-  } catch(e) { messages.push({ role:"assistant", content:"Error: "+e.message }); }
-  loading=false; renderMessages();
+    var result = await callBridge(messages, abortController.signal);
+    if (result) {
+      messages.push({ role:"assistant", content:result.reply, docsUsados:result.docsUsados });
+      guardarEnHistorial(text, result.reply, result.docsUsados);
+      loadMiConsumo();
+    }
+  } catch(e) {
+    if (e.name === "AbortError") {
+      // Cancelado por el usuario — deshacer
+      messages.pop(); // quitar la pregunta del usuario
+      input.value = textoOriginal; // restaurar texto
+    } else {
+      messages.push({ role:"assistant", content:"Error: "+e.message });
+    }
+  }
+  loading=false;
+  abortController = null;
+  document.getElementById("cancelBtn").style.display = "none";
+  renderMessages();
+}
+
+function cancelarConsulta() {
+  if (abortController) {
+    abortController.abort();
+  }
 }
 
 function handleChatKey(e) { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} }
