@@ -290,13 +290,15 @@ function cancelarConsulta() {
       <div style="display:flex;justify-content:flex-start;gap:6px;padding:6px 12px;background:#f8f9fa;border-bottom:0.5px solid #e0e0e0;">
         <button class="chat-btn" onclick="copyAll()">📋 Copiar todo</button>
         <button class="chat-btn" onclick="printChat()">🖨️ Imprimir</button>
-        <button class="chat-btn" id="cancelBtn" onclick="cancelarConsulta()" style="display:none;background:#fff0f0;border-color:#c62828;color:#c62828;">✕ Cancelar</button>
       </div>
       
       <div class="messages" id="messages"></div>
       <div class="input-bar">
         <textarea id="chatInput" rows="2" style="flex:1" placeholder="Escribe tu consulta… (Enter para enviar, Shift+Enter para nueva línea)" onkeydown="handleChatKey(event)"></textarea>
-        <button class="send-btn" onclick="sendMessage()">➤</button>
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+          <button class="send-btn" onclick="sendMessage()">➤</button>
+          <button id="cancelBtn" onclick="cancelarConsulta()" style="display:none;padding:6px 10px;border-radius:8px;background:#fff0f0;border:1.5px solid #c62828;color:#c62828;cursor:pointer;font-size:13px;font-weight:600;">✕</button>
+        </div>
       </div>
     </div>
 
