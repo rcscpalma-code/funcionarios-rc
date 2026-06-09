@@ -10,6 +10,16 @@
   <script>
     var messages = [];
     var currentUser = null;
+    // Estado del usuario en el sistema
+    var userStatus = {
+      categoria: null,
+      estado: null,
+      mensajes_usados: 0,
+      mensajes_limite: 3,
+      credito_euros: 0,
+      credito_gastado: 0,
+      saldo_restante: 0
+    };
 
     function stripMarkdown(text) {
       return (text||"")
@@ -17,7 +27,6 @@
         .replace(/\*(.+?)\*/g,"$1").replace(/`(.+?)`/g,"$1")
         .replace(/^[-•] /gm,"• ").trim();
     }
-
     function stripMarkdownWithDocs(content, docsUsados) {
       var text = stripMarkdown(content);
       if (docsUsados) {
@@ -26,7 +35,6 @@
       }
       return text;
     }
-
     function showCopyToast(msg) {
       var t = document.createElement("div");
       t.textContent = msg;
@@ -87,10 +95,21 @@
     .header-title { flex: 1; }
     .header-title h1 { font-size: 16px; font-weight: 600; color: #1a1a1a; }
     .header-title p { font-size: 11px; color: #888; margin-top: 1px; }
-    .user-badge { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #555; }
+    .user-badge { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #555; flex-wrap: wrap; }
     .user-badge img { width: 28px; height: 28px; border-radius: 50%; }
     .logout-btn { font-size: 11px; padding: 3px 8px; border-radius: 5px; border: 1px solid #ddd; background: #fff; cursor: pointer; color: #666; }
     .my-usage { font-size: 11px; padding: 3px 8px; border-radius: 5px; background: #E6F1FB; color: #185FA5; }
+
+    /* ── Badge de saldo/mensajes del usuario ── */
+    .saldo-badge {
+      font-size: 11px; padding: 3px 10px; border-radius: 12px;
+      font-weight: 600; cursor: default;
+    }
+    .saldo-badge.cortesia  { background: #fff8e1; color: #f57c00; border: 1px solid #ffe082; }
+    .saldo-badge.colaborador { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .saldo-badge.vip       { background: #f3e5f5; color: #7b1fa2; border: 1px solid #ce93d8; }
+    .saldo-badge.bloqueado { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+
     .mode-bar { display: flex; gap: 6px; padding: 9px 16px; border-bottom: 0.5px solid #e0e0e0; background: #f8f9fa; flex-wrap: wrap; align-items: center; }
     .mode-btn { padding: 5px 13px; font-size: 13px; border-radius: 7px; border: 1px solid #ddd; background: transparent; color: #666; cursor: pointer; }
     .mode-btn.active { border: 1.5px solid #185FA5; background: #E6F1FB; color: #185FA5; font-weight: 500; }
@@ -132,9 +151,39 @@
     @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
-    #loginPanel { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 32px; gap: 20px; }
+
+    /* ── LOGIN ── */
+    #loginPanel { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 32px; gap: 16px; }
     #loginPanel h2 { font-size: 20px; font-weight: 600; color: #1a1a1a; }
     #loginPanel p { font-size: 14px; color: #666; text-align: center; max-width: 300px; }
+    .rgpd-check { display: flex; align-items: flex-start; gap: 10px; max-width: 320px; font-size: 12px; color: #555; line-height: 1.5; }
+    .rgpd-check input { margin-top: 2px; flex-shrink: 0; width: 16px; height: 16px; cursor: pointer; }
+    .rgpd-check a { color: #185FA5; }
+    #googleBtnWrap { opacity: 0.4; pointer-events: none; transition: opacity 0.2s; }
+    #googleBtnWrap.enabled { opacity: 1; pointer-events: auto; }
+
+    /* ── Pantalla de límite alcanzado ── */
+    #limitePanel {
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      flex: 1; padding: 32px; gap: 16px; text-align: center;
+    }
+    .limite-icon { font-size: 48px; }
+    .limite-titulo { font-size: 18px; font-weight: 600; color: #1a1a1a; }
+    .limite-msg { font-size: 14px; color: #666; max-width: 340px; line-height: 1.6; }
+    .limite-iban { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px 20px; font-size: 13px; color: #1a1a1a; max-width: 340px; }
+    .limite-iban strong { display: block; font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .limite-iban .iban-num { font-family: monospace; font-size: 15px; font-weight: 700; color: #185FA5; letter-spacing: 0.05em; }
+    .limite-iban .concepto { font-size: 12px; color: #555; margin-top: 8px; }
+    .limite-opciones { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .btn-aportacion { padding: 10px 22px; border-radius: 8px; background: #185FA5; color: #fff; border: none; cursor: pointer; font-size: 14px; font-weight: 600; }
+    .btn-baja { padding: 8px 18px; border-radius: 8px; background: #fff; color: #c62828; border: 1.5px solid #ef9a9a; cursor: pointer; font-size: 13px; }
+
+    /* ── Pantalla de espera ── */
+    #esperaPanel {
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      flex: 1; padding: 32px; gap: 16px; text-align: center;
+    }
+
     .admin-panel { padding: 20px; }
     .admin-panel h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
     .admin-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
@@ -143,6 +192,8 @@
     .btn-primary { padding: 8px 18px; background: #185FA5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; }
     .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
     .btn-secondary { padding: 6px 14px; background: #f8f9fa; color: #555; border: 1px solid #ddd; border-radius: 7px; cursor: pointer; font-size: 12px; }
+    .btn-danger { padding: 6px 14px; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; border-radius: 7px; cursor: pointer; font-size: 12px; }
+    .btn-success { padding: 6px 14px; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; border-radius: 7px; cursor: pointer; font-size: 12px; }
     .status-msg { font-size: 12px; margin-top: 8px; padding: 6px 10px; border-radius: 6px; }
     .status-ok { background: #e8f5e9; color: #2e7d32; }
     .status-err { background: #ffebee; color: #c62828; }
@@ -153,9 +204,8 @@
     .stat-box .lbl { font-size: 11px; color: #888; margin-top: 2px; }
     .chart-wrap { position: relative; height: 200px; margin: 12px 0; }
     .user-search { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; margin-bottom: 10px; outline: none; }
-    .user-list { max-height: 200px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; background: #fff; }
-    .user-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 0.5px solid #f0f0f0; cursor: pointer; font-size: 13px; }
-    .user-row:hover { background: #f8f9fa; }
+    .user-list { max-height: 260px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; background: #fff; }
+    .user-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 0.5px solid #f0f0f0; font-size: 13px; }
     .user-row .email { color: #555; font-size: 11px; }
     .tab-bar { display: flex; gap: 4px; margin-bottom: 12px; }
     .tab { padding: 5px 12px; border-radius: 6px; border: 1px solid #ddd; background: transparent; font-size: 12px; cursor: pointer; color: #666; }
@@ -165,53 +215,45 @@
     @media (prefers-color-scheme: dark) {
       .chat-btn { background: #1a3a5c; color: #90CAF9; border-color: #90CAF9; }
     }
+
     /* ── Botones de acción en burbujas ── */
-    .bubble-hover-wrap {
-      display: flex;
-      flex-direction: row;
-      align-items: flex-start;
-      gap: 8px;
-      max-width: 88%;
-    }
-    .bubble-action-btns {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      flex-shrink: 0;
-      padding-top: 4px;
-      position: sticky;
-      top: 8px;
-      align-self: flex-start;
-    }
-    .bubble-copy-btn {
-      background: #fff;
-      border: 1.5px solid #ddd;
-      border-radius: 10px;
-      padding: 10px 12px;
-      cursor: pointer;
-      font-size: 18px;
-      line-height: 1;
-      color: #555;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-      transition: all 0.15s;
-    }
+    .bubble-hover-wrap { display: flex; flex-direction: row; align-items: flex-start; gap: 8px; max-width: 88%; }
+    .bubble-action-btns { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; padding-top: 4px; position: sticky; top: 8px; align-self: flex-start; }
+    .bubble-copy-btn { background: #fff; border: 1.5px solid #ddd; border-radius: 10px; padding: 10px 12px; cursor: pointer; font-size: 18px; line-height: 1; color: #555; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: all 0.15s; }
     .bubble-copy-btn:hover { border-color: #185FA5; color: #185FA5; box-shadow: 0 2px 6px rgba(24,95,165,0.15); }
-    .bubble-error-btn {
-      background: #fff;
-      border: 1.5px solid #ddd;
-      border-radius: 10px;
-      padding: 10px 12px;
-      cursor: pointer;
-      font-size: 18px;
-      line-height: 1;
-      color: #555;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-      transition: all 0.15s;
-    }
+    .bubble-error-btn { background: #fff; border: 1.5px solid #ddd; border-radius: 10px; padding: 10px 12px; cursor: pointer; font-size: 18px; line-height: 1; color: #555; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: all 0.15s; }
     .bubble-error-btn:hover { border-color: #c62828; color: #c62828; box-shadow: 0 2px 6px rgba(198,40,40,0.15); }
-    /* ── Botón reportar error en historial ── */
     .btn-error { padding: 4px 10px; border-radius: 6px; border: 1px solid #ffcdd2; background: #fff8f8; color: #c62828; cursor: pointer; font-size: 11px; }
     .btn-error:hover { background: #ffebee; }
+
+    /* ── Marca de agua ── */
+    .watermark {
+      position: fixed; bottom: 10px; right: 16px;
+      font-size: 9px; color: #ccc; line-height: 1.4;
+      text-align: right; pointer-events: none; z-index: 1;
+      user-select: none;
+    }
+
+    /* ── Tabla de usuarios admin ── */
+    .user-admin-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 0.5px solid #f0f0f0;
+      font-size: 12px;
+    }
+    .user-admin-row:hover { background: #f8f9fa; }
+    .categoria-pill {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 10px; font-weight: 600;
+    }
+    .cat-cortesia  { background: #fff8e1; color: #f57c00; }
+    .cat-colaborador { background: #e8f5e9; color: #2e7d32; }
+    .cat-vip       { background: #f3e5f5; color: #7b1fa2; }
+    .cat-bloqueado { background: #ffebee; color: #c62828; }
+    .cat-espera    { background: #f8f9fa; color: #888; }
   </style>
 </head>
 <body>
@@ -238,12 +280,13 @@
     <div id="userBadge" style="display:none" class="user-badge">
       <img id="userAvatar" src="" alt=""/>
       <span id="userName"></span>
+      <span id="saldoBadge" class="saldo-badge" style="display:none"></span>
       <span id="myUsageBadge" class="my-usage" style="display:none"></span>
       <button class="logout-btn" onclick="logout()">Salir</button>
     </div>
   </div>
 
-  <!-- LOGIN -->
+  <!-- ── LOGIN ── -->
   <div id="loginPanel">
     <svg viewBox="0 0 120 100" width="72" height="60" xmlns="http://www.w3.org/2000/svg">
       <circle cx="60" cy="22" r="14" fill="#2196F3"/>
@@ -255,10 +298,44 @@
     </svg>
     <h2>Funcionarios RC</h2>
     <p>Asistente jurídico especializado en Registro Civil español</p>
-    <div id="googleBtn"></div>
+    <label class="rgpd-check">
+      <input type="checkbox" id="rgpdCheck" onchange="toggleLoginBtn()"/>
+      <span>He leído y acepto la <a href="privacidad.html" target="_blank">política de privacidad</a>. Consiento el tratamiento de mis datos para el uso de la aplicación.</span>
+    </label>
+    <div id="googleBtnWrap"><div id="googleBtn"></div></div>
+    <p style="font-size:11px;color:#aaa;">Acceso por invitación · beta cerrada</p>
   </div>
 
-  <!-- APP PRINCIPAL -->
+  <!-- ── LISTA DE ESPERA ── -->
+  <div id="esperaPanel">
+    <div class="limite-icon">⏳</div>
+    <div class="limite-titulo">En lista de espera</div>
+    <div class="limite-msg">Gracias por registrarte. Actualmente estamos en fase beta con acceso limitado.<br><br>Te avisaremos en cuanto haya plaza disponible.</div>
+    <button class="logout-btn" style="padding:8px 20px;font-size:13px;" onclick="logout()">Cerrar sesión</button>
+  </div>
+
+  <!-- ── LÍMITE ALCANZADO ── -->
+  <div id="limitePanel">
+    <div class="limite-icon" id="limiteIcon">🔒</div>
+    <div class="limite-titulo" id="limiteTitulo">Mensajes gratuitos agotados</div>
+    <div class="limite-msg" id="limiteMsg">Has utilizado tus mensajes gratuitos de cortesía. Para seguir usando el asistente, puedes colaborar con el sostenimiento de la aplicación mediante una aportación voluntaria.</div>
+    <div class="limite-iban">
+      <strong>Aportación por transferencia bancaria</strong>
+      <div class="iban-num">ES00 0000 0000 0000 0000 0000</div>
+      <div class="concepto">Concepto: <strong id="conceptoPago">RC-usuario</strong></div>
+      <div style="margin-top:10px;font-size:11px;color:#888;line-height:1.5;">
+        Importes sugeridos: <strong>5 €</strong> · <strong>10 €</strong> · <strong>15 €</strong><br>
+        Tras confirmar el pago, el administrador activará tu acceso.
+      </div>
+    </div>
+    <div class="limite-opciones">
+      <button class="btn-aportacion" onclick="mostrarInstruccionesPago()">💳 Ya he realizado la aportación</button>
+      <button class="btn-baja" onclick="solicitarBajaUsuario()">🗑 Eliminar mi cuenta</button>
+    </div>
+    <div id="limiteStatus" style="font-size:12px;color:#888;margin-top:8px;"></div>
+  </div>
+
+  <!-- ── APP PRINCIPAL ── -->
   <div id="mainApp" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
     <div class="mode-bar">
       <button class="mode-btn active" id="btn-chat" onclick="setMode('chat')">💬 Chat</button>
@@ -320,6 +397,7 @@
             <a href="https://console.anthropic.com/settings/usage" target="_blank" style="padding:5px 12px;border-radius:6px;border:1px solid #5c3d8f;background:#7c3aed;color:#fff;font-size:12px;text-decoration:none;font-weight:500;">📊 Uso API</a>
           </div>
         </div>
+
         <!-- Tab Sistema -->
         <div id="tab-sistema">
           <div class="admin-card">
@@ -373,6 +451,7 @@
             <div id="indexInfo" style="margin-top:8px;font-size:13px;color:#555;"></div>
           </div>
         </div>
+
         <!-- Tab Consumo -->
         <div id="tab-consumo" style="display:none;">
           <div class="admin-card">
@@ -383,34 +462,90 @@
             <button class="btn-secondary" onclick="toggleChartDiario()">📈 Ver/ocultar gráfica</button>
           </div>
         </div>
+
         <!-- Tab Usuarios -->
         <div id="tab-usuarios" style="display:none;">
+          <!-- Cupo beta -->
           <div class="admin-card">
-            <h3>👥 Buscar usuario</h3>
-            <input type="text" class="user-search" id="userSearchInput" placeholder="Escribe email o nombre…" oninput="filterUsers()"/>
-            <div class="user-list" id="userList"></div>
-            <div id="userDetail" style="margin-top:12px;"></div>
-            <div class="chart-wrap" style="display:none;" id="chartUserWrap"><canvas id="chartUsuario"></canvas></div>
+            <h3>🎯 Control de acceso beta</h3>
+            <div id="cupoInfo" style="font-size:13px;color:#555;margin-bottom:10px;">⏳ Cargando…</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <button class="btn-primary" onclick="activarSiguienteUsuario()">✅ Activar siguiente en espera</button>
+              <button class="btn-secondary" onclick="verListaEspera()">⏳ Ver lista de espera</button>
+            </div>
+            <div id="cupoStatus" style="margin-top:8px;"></div>
+            <div id="listaEsperaContainer" style="display:none;margin-top:12px;"></div>
+          </div>
+
+          <!-- Búsqueda y gestión -->
+          <div class="admin-card">
+            <h3>👥 Gestión de usuarios</h3>
+            <input type="text" class="user-search" id="userSearchInput" placeholder="Buscar por email o nombre…" oninput="filterAdminUsers()"/>
+            <div class="user-list" id="adminUserList"></div>
+          </div>
+
+          <!-- Detalle de usuario seleccionado -->
+          <div class="admin-card" id="userDetailCard" style="display:none;">
+            <h3>👤 <span id="userDetailNombre"></span></h3>
+            <div id="userDetailInfo" style="font-size:13px;color:#555;margin-bottom:12px;"></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;" id="userDetailAcciones"></div>
+            <div id="userDetailStatus" style="margin-top:8px;"></div>
+          </div>
+
+          <!-- Configuración -->
+          <div class="admin-card">
+            <h3>⚙️ Configuración del sistema</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+              <div>
+                <label style="font-size:11px;color:#888;display:block;margin-bottom:4px;">Cupo máximo beta</label>
+                <input type="number" id="cfgCupoMax" style="width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;" min="1" max="500"/>
+              </div>
+              <div>
+                <label style="font-size:11px;color:#888;display:block;margin-bottom:4px;">Mensajes cortesía</label>
+                <input type="number" id="cfgMensajesCortesia" style="width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;" min="1" max="20"/>
+              </div>
+              <div>
+                <label style="font-size:11px;color:#888;display:block;margin-bottom:4px;">Factor margen crédito (0-1)</label>
+                <input type="number" id="cfgMargenFactor" style="width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;" min="0.1" max="1" step="0.05"/>
+              </div>
+            </div>
+            <button class="btn-primary" onclick="guardarConfig()">💾 Guardar configuración</button>
+            <div id="configStatus" style="margin-top:8px;"></div>
           </div>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+<!-- Marca de agua -->
+<div class="watermark">
+  Desarrollado por José E. Carballo<br>
+  OG RC S/C de La Palma
+</div>
+
 <div class="footer">Asistente basado en legislación y resoluciones de Registro Civil español · DGRN / DGSJFP</div>
 
 <script>
-const PROXY_URL  = "https://funcionarios-rc-proxy.rcscpalma.workers.dev";
-const BRIDGE_URL = "https://script.google.com/macros/s/AKfycby1t6ZOFVdXhlwXHFuUkmfoSJFsJ-SwD40HmO-k7CgCKdfyPUGTj69ZqxoVy8zm2Ukp/exec";
-const CLIENT_ID  = "420403850972-gcihihnpd7717sge054nan31be2kpnh9.apps.googleusercontent.com";
+const BRIDGE_URL  = "https://script.google.com/macros/s/AKfycby1t6ZOFVdXhlwXHFuUkmfoSJFsJ-SwD40HmO-k7CgCKdfyPUGTj69ZqxoVy8zm2Ukp/exec";
+const CLIENT_ID   = "420403850972-gcihihnpd7717sge054nan31be2kpnh9.apps.googleusercontent.com";
 const ADMIN_EMAIL = "rcscpalma@gmail.com";
 const SESSION_KEY = "frc_session";
 const SESSION_TTL = 60 * 60 * 1000;
 
 var mode = "chat", files = [], selectedDocs = [], loading = false;
 var abortController = null;
-var chartDiarioInst = null, chartUsuarioInst = null, allUsuarios = [];
+var chartDiarioInst = null, chartUsuarioInst = null;
+var allAdminUsuarios = [];
 var selectedFolderId = null, folderStack = [];
+var historialCache = [], historialFiltroActual = "";
+
+// ── RGPD checkbox ─────────────────────────────────────────────────────
+function toggleLoginBtn() {
+  var checked = document.getElementById("rgpdCheck").checked;
+  var wrap = document.getElementById("googleBtnWrap");
+  wrap.classList.toggle("enabled", checked);
+}
 
 // ── AUTH ──────────────────────────────────────────────────────────────
 window.onload = function() {
@@ -418,54 +553,199 @@ window.onload = function() {
     var saved = localStorage.getItem(SESSION_KEY);
     if (saved) {
       var session = JSON.parse(saved);
-      if (Date.now() < session.expires) { currentUser = session.user; showApp(); return; }
+      if (Date.now() < session.expires) {
+        currentUser = session.user;
+        // Restaurar userStatus si existe
+        if (session.userStatus) userStatus = session.userStatus;
+        showApp();
+        return;
+      }
       localStorage.removeItem(SESSION_KEY);
     }
   } catch(e) {}
   google.accounts.id.initialize({ client_id: CLIENT_ID, callback: handleCredential, auto_select: false });
   google.accounts.id.renderButton(document.getElementById("googleBtn"), { theme:"outline", size:"large", text:"signin_with", locale:"es" });
 };
+
 function handleCredential(resp) {
   var p = parseJwt(resp.credential);
-  currentUser = { email:p.email, name:p.name, picture:p.picture };
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ user:currentUser, expires:Date.now()+SESSION_TTL }));
+  currentUser = { email: p.email, name: p.name, picture: p.picture };
+  // Guardar sesión básica (el userStatus se guarda tras verificarAcceso)
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ user: currentUser, expires: Date.now() + SESSION_TTL }));
   showApp();
 }
+
 function parseJwt(token) {
   return JSON.parse(atob(token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));
 }
-function showApp() {
+
+async function showApp() {
+  // Ocultar todos los paneles
   document.getElementById("loginPanel").style.display = "none";
-  var main = document.getElementById("mainApp");
-  main.style.display = "flex"; main.style.flexDirection = "column";
+  document.getElementById("esperaPanel").style.display = "none";
+  document.getElementById("limitePanel").style.display = "none";
+
+  // Mostrar badge de usuario inmediatamente
   document.getElementById("userBadge").style.display = "flex";
   document.getElementById("userAvatar").src = currentUser.picture;
   document.getElementById("userName").textContent = currentUser.name;
-  if (currentUser.email === ADMIN_EMAIL) document.getElementById("btn-admin").style.display = "block";
+
+  // Admin siempre tiene acceso directo
+  if (currentUser.email === ADMIN_EMAIL) {
+    document.getElementById("btn-admin").style.display = "block";
+    mostrarMainApp();
+    return;
+  }
+
+  // Para usuarios normales: registrar y verificar acceso
+  try {
+    // 1. Registrar (si es la primera vez, crea la fila)
+    var reg = await proxyFetch({
+      action: "registrarUsuario",
+      email: currentUser.email,
+      nombre: currentUser.name,
+      consentimiento_rgpd: "1"
+    });
+
+    // 2. Verificar acceso
+    var acceso = await proxyFetch({ action: "verificarAcceso", email: currentUser.email });
+
+    if (!acceso.acceso) {
+      if (acceso.motivo === "lista_espera") {
+        document.getElementById("esperaPanel").style.display = "flex";
+        return;
+      }
+      if (acceso.motivo === "limite_cortesia" || acceso.motivo === "saldo_agotado") {
+        mostrarLimitePanel(acceso);
+        return;
+      }
+      if (acceso.motivo === "bloqueado") {
+        document.getElementById("esperaPanel").style.display = "flex";
+        document.querySelector("#esperaPanel .limite-titulo") && (document.querySelector("#esperaPanel .limite-msg").textContent = "Tu acceso ha sido suspendido. Contacta con el administrador.");
+        return;
+      }
+    }
+
+    // Actualizar estado de usuario
+    userStatus = {
+      categoria:       acceso.categoria || reg.categoria || "cortesia",
+      estado:          acceso.estado || "activo",
+      mensajes_usados: acceso.mensajes_usados || 0,
+      mensajes_limite: acceso.mensajes_limite || 3,
+      credito_euros:   acceso.credito_euros || 0,
+      credito_gastado: acceso.credito_gastado || 0,
+      saldo_restante:  acceso.saldo_restante || 0
+    };
+
+    // Guardar en sesión
+    var session = JSON.parse(localStorage.getItem(SESSION_KEY) || "{}");
+    session.userStatus = userStatus;
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+
+    actualizarSaldoBadge();
+    mostrarMainApp();
+
+  } catch(e) {
+    // Si falla la verificación, mostramos la app igualmente (graceful degradation)
+    console.warn("Error verificando acceso:", e.message);
+    mostrarMainApp();
+  }
+}
+
+function mostrarMainApp() {
+  var main = document.getElementById("mainApp");
+  main.style.display = "flex";
+  main.style.flexDirection = "column";
+
   messages = [{ role:"assistant", content:"Hola, "+currentUser.name.split(" ")[0]+". Soy el asistente jurídico de Registro Civil.\n\nPuedes preguntarme sobre legislación, resoluciones de la DGRN/DGSJFP, procedimientos, inscripciones, nacionalidad, filiación, matrimonio y cualquier materia de Registro Civil.\n\nLa búsqueda en documentos es automática — selecciono los más relevantes para cada consulta." }];
   renderMessages();
   loadFiles();
   updateContextBar();
   loadMiConsumo();
 }
+
+function mostrarLimitePanel(acceso) {
+  var icon    = document.getElementById("limiteIcon");
+  var titulo  = document.getElementById("limiteTitulo");
+  var msg     = document.getElementById("limiteMsg");
+  var concepto = document.getElementById("conceptoPago");
+
+  if (acceso && acceso.motivo === "saldo_agotado") {
+    icon.textContent    = "💳";
+    titulo.textContent  = "Saldo agotado";
+    msg.textContent     = "Has agotado tu saldo de crédito. Puedes recargar realizando una nueva aportación y el administrador lo activará.";
+  } else {
+    icon.textContent    = "🔒";
+    titulo.textContent  = "Mensajes gratuitos agotados";
+    msg.textContent     = "Has utilizado tus " + (acceso && acceso.mensajes_limite || 3) + " mensajes de cortesía. Para seguir usando el asistente, realiza una aportación voluntaria.";
+  }
+
+  concepto.textContent = "RC-" + (currentUser ? currentUser.email.split("@")[0] : "usuario");
+  document.getElementById("limitePanel").style.display = "flex";
+}
+
+function mostrarInstruccionesPago() {
+  var el = document.getElementById("limiteStatus");
+  el.innerHTML = "✅ Perfecto. Realiza la transferencia y envía el comprobante a <strong>fororegistrocivil@gmail.com</strong> indicando tu email. El administrador activará tu acceso en breve.";
+}
+
+async function solicitarBajaUsuario() {
+  if (!currentUser) return;
+  if (!confirm("¿Estás seguro? Esta acción eliminará tu cuenta y anonimizará todos tus datos. Es irreversible.")) return;
+  try {
+    var d = await proxyFetch({ action: "solicitarBaja", email: currentUser.email });
+    if (d.ok) {
+      alert("Tu cuenta ha sido eliminada correctamente. Los datos personales han sido anonimizados.");
+      logout();
+    } else {
+      showCopyToast("❌ Error al eliminar la cuenta: " + (d.error||"desconocido"));
+    }
+  } catch(e) { showCopyToast("❌ Error: " + e.message); }
+}
+
+// ── Actualizar badge de saldo en cabecera ────────────────────────────
+function actualizarSaldoBadge() {
+  var badge = document.getElementById("saldoBadge");
+  if (!userStatus.categoria || currentUser.email === ADMIN_EMAIL) { badge.style.display = "none"; return; }
+
+  badge.style.display = "inline-block";
+  badge.className = "saldo-badge " + userStatus.categoria;
+
+  if (userStatus.categoria === "cortesia") {
+    var restantes = userStatus.mensajes_limite - userStatus.mensajes_usados;
+    badge.textContent = "🎁 " + restantes + " msg gratis";
+  } else if (userStatus.categoria === "colaborador") {
+    badge.textContent = "💚 " + (userStatus.saldo_restante || 0).toFixed(2) + " €";
+  } else if (userStatus.categoria === "vip") {
+    badge.textContent = "⭐ VIP";
+  } else if (userStatus.categoria === "bloqueado") {
+    badge.textContent = "🚫 Bloqueado";
+  }
+}
+
 function logout() {
   currentUser = null;
+  userStatus = { categoria: null, estado: null, mensajes_usados: 0, mensajes_limite: 3, credito_euros: 0, credito_gastado: 0, saldo_restante: 0 };
   localStorage.removeItem(SESSION_KEY);
   document.getElementById("loginPanel").style.display = "flex";
   document.getElementById("mainApp").style.display = "none";
+  document.getElementById("limitePanel").style.display = "none";
+  document.getElementById("esperaPanel").style.display = "none";
   document.getElementById("userBadge").style.display = "none";
-  google.accounts.id.initialize({ client_id:CLIENT_ID, callback:handleCredential, auto_select:false });
+  document.getElementById("rgpdCheck").checked = false;
+  document.getElementById("googleBtnWrap").classList.remove("enabled");
+  google.accounts.id.initialize({ client_id: CLIENT_ID, callback: handleCredential, auto_select: false });
   google.accounts.id.renderButton(document.getElementById("googleBtn"), { theme:"outline", size:"large", text:"signin_with", locale:"es" });
 }
 
-// ── PROXY ─────────────────────────────────────────────────────────────
+// ── PROXY / FETCH ────────────────────────────────────────────────────
 async function proxyFetch(params, signal) {
   var qs = new URLSearchParams(params).toString();
   var r = await fetch(BRIDGE_URL + "?" + qs, signal ? { signal } : {});
   return r.json();
 }
-  
-// ── MODO ──────────────────────────────────────────────────────────────
+
+// ── MODO ─────────────────────────────────────────────────────────────
 function setMode(m) {
   mode = m;
   ["chat","drive","historial","admin"].forEach(function(id){
@@ -488,10 +768,7 @@ function setMode(m) {
   }
 }
 
-// ── HISTORIAL ─────────────────────────────────────────────────────────
-var historialCache = [];
-var historialFiltroActual = "";
-
+// ── HISTORIAL ────────────────────────────────────────────────────────
 async function guardarEnHistorial(pregunta, respuesta, docsUsados) {
   if (!currentUser) return;
   try {
@@ -519,24 +796,13 @@ function renderHistorialLista(query) {
   historialFiltroActual = query || "";
   var lista = document.getElementById("historialLista");
   var hist = historialCache;
-  if (!hist.length) {
-    lista.innerHTML = "<div style='color:#888;font-size:13px;padding:20px 0;text-align:center;'>No hay consultas guardadas todavía.</div>";
-    return;
-  }
-  var filtrados = query ? hist.filter(function(h) {
-    var q = query.toLowerCase();
-    return h.pregunta.toLowerCase().includes(q) || h.respuesta.toLowerCase().includes(q);
-  }) : hist;
-  if (!filtrados.length) {
-    lista.innerHTML = "<div style='color:#888;font-size:13px;padding:20px 0;text-align:center;'>No hay resultados para «"+query+"».</div>";
-    return;
-  }
-  lista.innerHTML = filtrados.map(function(h, idx) {
-    var resumen = h.pregunta.length > 100 ? h.pregunta.substring(0,100)+"…" : h.pregunta;
+  if (!hist.length) { lista.innerHTML = "<div style='color:#888;font-size:13px;padding:20px 0;text-align:center;'>No hay consultas guardadas todavía.</div>"; return; }
+  var filtrados = query ? hist.filter(function(h){ var q=query.toLowerCase(); return h.pregunta.toLowerCase().includes(q)||h.respuesta.toLowerCase().includes(q); }) : hist;
+  if (!filtrados.length) { lista.innerHTML = "<div style='color:#888;font-size:13px;padding:20px 0;text-align:center;'>No hay resultados para «"+query+"».</div>"; return; }
+  lista.innerHTML = filtrados.map(function(h,idx){
+    var resumen = h.pregunta.length>100?h.pregunta.substring(0,100)+"…":h.pregunta;
     var highlight = resumen;
-    if (query) {
-      try { highlight = resumen.split(query).join("<mark style='background:#fff3cd;'>"+query+"</mark>"); } catch(e) {}
-    }
+    if (query) { try { highlight=resumen.split(query).join("<mark style='background:#fff3cd;'>"+query+"</mark>"); } catch(e){} }
     return "<div style='background:#fff;border:1px solid #e0e0e0;border-radius:9px;padding:12px;margin-bottom:8px;'>" +
       "<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;'>" +
       "<div style='font-size:11px;color:#aaa;'>📅 "+h.fecha+"</div>" +
@@ -547,18 +813,12 @@ function renderHistorialLista(query) {
   }).join("");
 }
 
-function filtrarHistorial() {
-  var q = document.getElementById("historialSearch").value.trim();
-  renderHistorialLista(q);
-}
+function filtrarHistorial() { renderHistorialLista(document.getElementById("historialSearch").value.trim()); }
 
 async function reportarError(idx, event) {
   event.stopPropagation();
   var hist = historialCache;
-  var filtrados = historialFiltroActual ? hist.filter(function(h) {
-    var q = historialFiltroActual.toLowerCase();
-    return h.pregunta.toLowerCase().includes(q) || h.respuesta.toLowerCase().includes(q);
-  }) : hist;
+  var filtrados = historialFiltroActual ? hist.filter(function(h){ var q=historialFiltroActual.toLowerCase(); return h.pregunta.toLowerCase().includes(q)||h.respuesta.toLowerCase().includes(q); }) : hist;
   var item = filtrados[idx];
   if (!item) return;
   if (!confirm("¿Confirmas que esta respuesta contiene un error y quieres reportarla?")) return;
@@ -567,46 +827,31 @@ async function reportarError(idx, event) {
   try {
     var d = await proxyFetch({ action:"marcarError", email:currentUser.email, fecha:item.fecha, nota:nota||"" });
     if (d.ok) {
-      showCopyToast("✅ Error reportado. Esta respuesta ya no aparecerá en futuras búsquedas.");
+      showCopyToast("✅ Error reportado.");
       var idxGlobal = hist.indexOf(item);
-      if (idxGlobal >= 0) hist.splice(idxGlobal, 1);
+      if (idxGlobal>=0) hist.splice(idxGlobal,1);
       renderHistorialLista(historialFiltroActual);
-    } else {
-      showCopyToast("❌ Error al reportar: " + (d.error||"desconocido"));
-    }
-  } catch(e) { showCopyToast("❌ Error al reportar: " + e.message); }
+    } else { showCopyToast("❌ Error al reportar: "+(d.error||"desconocido")); }
+  } catch(e) { showCopyToast("❌ Error al reportar: "+e.message); }
 }
 
 async function reportarErrorChat(idx) {
   var m = messages[idx];
-  if (!m || m.role !== "assistant") return;
-  if (!confirm("¿Confirmas que esta respuesta contiene un error y quieres reportarla?")) return;
+  if (!m||m.role!=="assistant") return;
+  if (!confirm("¿Confirmas que esta respuesta contiene un error?")) return;
   var nota = prompt("Describe brevemente el error (opcional):");
   if (nota === null) return;
   var pregunta = "";
-  for (var i = idx - 1; i >= 0; i--) {
-    if (messages[i].role === "user") { pregunta = messages[i].content; break; }
-  }
+  for (var i=idx-1;i>=0;i--) { if(messages[i].role==="user"){pregunta=messages[i].content;break;} }
   try {
-    var d = await proxyFetch({
-      action: "marcarError",
-      email: currentUser.email,
-      fecha: "",
-      nota: nota || "",
-      pregunta: pregunta.substring(0, 500)
-    });
+    await proxyFetch({ action:"marcarError", email:currentUser.email, fecha:"", nota:nota||"", pregunta:pregunta.substring(0,500) });
     showCopyToast("✅ Error reportado. Gracias por la corrección.");
-  } catch(e) {
-    showCopyToast("❌ Error al reportar: " + e.message);
-  }
+  } catch(e) { showCopyToast("❌ Error al reportar: "+e.message); }
 }
 
 function verHistorialDetalle(idx) {
   var hist = historialCache;
-  var filtrados = historialFiltroActual ? hist.filter(function(h) {
-    var q = historialFiltroActual.toLowerCase();
-    return h.pregunta.toLowerCase().includes(q) || h.respuesta.toLowerCase().includes(q);
-  }) : hist;
+  var filtrados = historialFiltroActual ? hist.filter(function(h){ var q=historialFiltroActual.toLowerCase(); return h.pregunta.toLowerCase().includes(q)||h.respuesta.toLowerCase().includes(q); }) : hist;
   var item = filtrados[idx];
   if (!item) return;
   document.getElementById("historialView").style.display = "none";
@@ -615,7 +860,7 @@ function verHistorialDetalle(idx) {
     "<div style='font-size:11px;color:#aaa;margin-bottom:8px;'>📅 "+item.fecha+"</div>" +
     "<div style='background:#185FA5;color:#fff;border-radius:12px 12px 4px 12px;padding:10px 14px;font-size:14px;margin-bottom:10px;white-space:pre-wrap;'>"+item.pregunta.replace(/</g,"&lt;")+"</div>" +
     "<div style='background:#f8f9fa;border:0.5px solid #e0e0e0;border-radius:12px 12px 12px 4px;padding:10px 14px;font-size:14px;'>"+renderMarkdown(item.respuesta)+"</div>" +
-    (item.docs ? "<div style='font-size:11px;color:#888;margin-top:6px;padding:3px 8px;background:#f8f9fa;border-radius:5px;border:1px solid #e0e0e0;'>📚 "+renderMarkdown(item.docs)+"</div>" : "") +
+    (item.docs?"<div style='font-size:11px;color:#888;margin-top:6px;padding:3px 8px;background:#f8f9fa;border-radius:5px;border:1px solid #e0e0e0;'>📚 "+renderMarkdown(item.docs)+"</div>":"") +
     "</div>";
   document.getElementById("historialDetalleContenido").innerHTML = html;
 }
@@ -640,7 +885,7 @@ function updateContextBar() {
   } else { bar.style.display="none"; }
 }
 
-// ── ARCHIVOS ──────────────────────────────────────────────────────────
+// ── ARCHIVOS ─────────────────────────────────────────────────────────
 async function loadFiles() {
   try {
     var d = await proxyFetch({ action:"list" });
@@ -665,53 +910,44 @@ function renderFiles() {
   document.getElementById("driveContent").innerHTML = html;
   updateContextBar();
 }
-function toggleDoc(id) { selectedDocs = selectedDocs.includes(id)?selectedDocs.filter(function(d){return d!==id;}):[...selectedDocs,id]; renderFiles(); updateContextBar(); }
+function toggleDoc(id) { selectedDocs=selectedDocs.includes(id)?selectedDocs.filter(function(d){return d!==id;}):[...selectedDocs,id]; renderFiles(); updateContextBar(); }
 function clearSelection() { selectedDocs=[]; renderFiles(); updateContextBar(); }
 
-// ── RENDER MARKDOWN ───────────────────────────────────────────────────
+// ── RENDER MARKDOWN ──────────────────────────────────────────────────
 function renderMarkdown(text) {
   var links = [];
-  text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, function(match, label, url) {
-    var placeholder = "%%LINK" + links.length + "%%";
-    links.push("<a href='" + url + "' target='_blank' style='color:#185FA5;text-decoration:underline;'>" + label + "</a>");
+  text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, function(match,label,url){
+    var placeholder = "%%LINK"+links.length+"%%";
+    links.push("<a href='"+url+"' target='_blank' style='color:#185FA5;text-decoration:underline;'>"+label+"</a>");
     return placeholder;
   });
   text = text
     .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-    .replace(/^### (.+)$/gm,"<h3>$1</h3>")
-    .replace(/^## (.+)$/gm,"<h2>$1</h2>")
-    .replace(/^# (.+)$/gm,"<h1>$1</h1>")
-    .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g,"<em>$1</em>")
-    .replace(/`(.+?)`/g,"<code>$1</code>")
-    .replace(/^[-•] (.+)$/gm,"<li>$1</li>")
-    .replace(/(<li>.*<\/li>)/gs,"<ul>$1</ul>")
-    .replace(/\n{2,}/g,"<br><br>")
-    .replace(/\n/g,"<br>");
-  links.forEach(function(link, i) { text = text.replace("%%LINK" + i + "%%", link); });
+    .replace(/^### (.+)$/gm,"<h3>$1</h3>").replace(/^## (.+)$/gm,"<h2>$1</h2>").replace(/^# (.+)$/gm,"<h1>$1</h1>")
+    .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/\*(.+?)\*/g,"<em>$1</em>").replace(/`(.+?)`/g,"<code>$1</code>")
+    .replace(/^[-•] (.+)$/gm,"<li>$1</li>").replace(/(<li>.*<\/li>)/gs,"<ul>$1</ul>")
+    .replace(/\n{2,}/g,"<br><br>").replace(/\n/g,"<br>");
+  links.forEach(function(link,i){ text=text.replace("%%LINK"+i+"%%",link); });
   return text;
 }
 
-// ── MENSAJES ──────────────────────────────────────────────────────────
+// ── MENSAJES ─────────────────────────────────────────────────────────
 function renderMessages() {
   var el = document.getElementById("messages");
   el.innerHTML = messages.map(function(m){
     var idx = messages.indexOf(m);
-var esRespuestaReal = m.role==="assistant" && idx > 0;
+    var esRespuestaReal = m.role==="assistant" && idx > 0;
     var bubbleContent = m.role==="assistant"
       ? "<div class='bubble-hover-wrap'>" +
-        "<div class='bubble assistant'>" + renderMarkdown(m.content) + "</div>" +
+        "<div class='bubble assistant'>"+renderMarkdown(m.content)+"</div>" +
         "<div class='bubble-action-btns'>" +
         "<button class='bubble-copy-btn' onclick='copyMessage("+idx+")' title='Copiar respuesta'>📋</button>" +
-        (esRespuestaReal ? "<button class='bubble-error-btn' onclick='reportarErrorChat("+idx+")' title='Reportar error'>⚠️</button>" : "") +
-        "</div>" +
-        "</div>"
-      : "<div class='bubble user'>" + m.content.replace(/</g,"&lt;") + "</div>";
+        (esRespuestaReal?"<button class='bubble-error-btn' onclick='reportarErrorChat("+idx+")' title='Reportar error'>⚠️</button>":"") +
+        "</div></div>"
+      : "<div class='bubble user'>"+m.content.replace(/</g,"&lt;")+"</div>";
     return "<div class='bubble-wrap "+m.role+"'>" +
       (m.role==="assistant"?"<div class='avatar'>⚖️</div>":"") +
-      "<div>" + bubbleContent +
-      (m.docsUsados?"<div class='docs-used'>📚 "+renderMarkdown(m.docsUsados)+"</div>":"") +
-      "</div></div>";
+      "<div>"+bubbleContent+(m.docsUsados?"<div class='docs-used'>📚 "+renderMarkdown(m.docsUsados)+"</div>":"")+"</div></div>";
   }).join("");
   if (loading) el.innerHTML += "<div class='typing'><div class='avatar'>⚖️</div><div class='dots'><div class='dot'></div><div class='dot'></div><div class='dot'></div></div></div>";
   el.scrollTop = el.scrollHeight;
@@ -728,18 +964,48 @@ async function callBridge(msgs, signal) {
 async function sendMessage() {
   var input = document.getElementById("chatInput");
   var text = input.value.trim();
-  if (!text||loading) return;
+  if (!text || loading) return;
+
+  // Verificar acceso antes de enviar (para usuarios no admin)
+  if (currentUser && currentUser.email !== ADMIN_EMAIL) {
+    try {
+      var acceso = await proxyFetch({ action:"verificarAcceso", email:currentUser.email });
+      if (!acceso.acceso) {
+        // Actualizar estado y mostrar pantalla de límite
+        userStatus.mensajes_usados = acceso.mensajes_usados || userStatus.mensajes_usados;
+        userStatus.saldo_restante  = acceso.saldo_restante  || 0;
+        mostrarMainApp_ocultar();
+        mostrarLimitePanel(acceso);
+        return;
+      }
+      // Actualizar estado en memoria
+      userStatus.mensajes_usados = acceso.mensajes_usados || userStatus.mensajes_usados;
+      userStatus.saldo_restante  = acceso.saldo_restante  || userStatus.saldo_restante;
+      actualizarSaldoBadge();
+    } catch(e) {
+      // Si falla la verificación, continuar (no bloquear por error de red)
+      console.warn("Error verificando acceso antes de enviar:", e.message);
+    }
+  }
+
   var textoOriginal = text;
   messages.push({ role:"user", content:text });
   input.value=""; loading=true;
   document.getElementById("cancelBtn").style.display = "inline-block";
   abortController = new AbortController();
   renderMessages();
+
   try {
     var result = await callBridge(messages, abortController.signal);
     if (result) {
       messages.push({ role:"assistant", content:result.reply, docsUsados:result.docsUsados });
       guardarEnHistorial(text, result.reply, result.docsUsados);
+
+      // Registrar consumo de tokens en el sistema de usuarios
+      if (currentUser && currentUser.email !== ADMIN_EMAIL && result.usage_tokens) {
+        registrarConsumoUsuario(result.usage_tokens.input || 0, result.usage_tokens.output || 0);
+      }
+
       loadMiConsumo();
     }
   } catch(e) {
@@ -750,19 +1016,39 @@ async function sendMessage() {
       messages.push({ role:"assistant", content:"Error: "+e.message });
     }
   }
-  loading=false;
+  loading = false;
   abortController = null;
   document.getElementById("cancelBtn").style.display = "none";
   renderMessages();
 }
 
-function cancelarConsulta() {
-  if (abortController) abortController.abort();
+function mostrarMainApp_ocultar() {
+  document.getElementById("mainApp").style.display = "none";
 }
 
+async function registrarConsumoUsuario(inputTokens, outputTokens) {
+  if (!currentUser || !inputTokens) return;
+  try {
+    var r = await proxyFetch({
+      action: "registrarConsumoUsuario",
+      email: currentUser.email,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens
+    });
+    if (r.ok) {
+      // Actualizar estado local
+      if (r.mensajes_usados !== undefined) userStatus.mensajes_usados = r.mensajes_usados;
+      if (r.saldo_restante  !== undefined) userStatus.saldo_restante  = r.saldo_restante;
+      if (r.credito_gastado !== undefined) userStatus.credito_gastado = r.credito_gastado;
+      actualizarSaldoBadge();
+    }
+  } catch(e) { console.warn("Error registrando consumo usuario:", e.message); }
+}
+
+function cancelarConsulta() { if (abortController) abortController.abort(); }
 function handleChatKey(e) { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} }
 
-// ── MI CONSUMO ────────────────────────────────────────────────────────
+// ── MI CONSUMO ───────────────────────────────────────────────────────
 async function loadMiConsumo() {
   if (!currentUser) return;
   try {
@@ -774,186 +1060,346 @@ async function loadMiConsumo() {
   } catch(e) {}
 }
 
-// ── ADMIN TABS ────────────────────────────────────────────────────────
+// ── ADMIN TABS ───────────────────────────────────────────────────────
 function showAdminTab(tab) {
   ["sistema","consumo","usuarios"].forEach(function(t){ document.getElementById("tab-"+t).style.display="none"; });
   document.getElementById("tab-"+tab).style.display = "block";
   document.querySelectorAll(".tab").forEach(function(b,i){ b.classList.toggle("active",["sistema","consumo","usuarios"][i]===tab); });
-  if (tab==="sistema") initFolderExplorer();
-  if (tab==="consumo") loadConsumoTotal();
-  if (tab==="usuarios") loadUsuarios();
+  if (tab==="sistema")  initFolderExplorer();
+  if (tab==="consumo")  loadConsumoTotal();
+  if (tab==="usuarios") loadAdminUsuarios();
 }
 
-// ── EXPLORADOR DE CARPETAS ────────────────────────────────────────────
+// ── EXPLORADOR DE CARPETAS ───────────────────────────────────────────
 async function initFolderExplorer() { folderStack=[]; await loadFolder(null); }
 async function loadFolder(folderId) {
-  var list = document.getElementById("folderList");
-  var breadcrumb = document.getElementById("folderBreadcrumb");
-  list.innerHTML = "<div style='padding:10px;color:#888;font-size:13px;'>⏳ Cargando…</div>";
+  var list=document.getElementById("folderList"), breadcrumb=document.getElementById("folderBreadcrumb");
+  list.innerHTML="<div style='padding:10px;color:#888;font-size:13px;'>⏳ Cargando…</div>";
   try {
-    var d = await proxyFetch({ action:"listFolders", folderId:folderId||"" });
-    if (d.error) throw new Error(d.error);
-    selectedFolderId = d.id;
-    var path = folderStack.map(function(f){return f.name;}).join(" › ");
-    breadcrumb.textContent = path ? "📁 "+path+" › "+d.name : "📁 "+d.name+" (raíz)";
-    var html = "";
-    if (folderStack.length>0) html += "<div onclick='goBack()' style='display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;color:#185FA5;font-size:13px;'>⬅️ <span>Volver</span></div>";
-    html += "<div onclick='selectFolder(\""+d.id+"\",\""+d.name.replace(/["']/g,'')+"\")'  style='display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:13px;background:#f0fff0;color:#2e7d32;font-weight:500;'>✅ Guardar aquí ("+d.name+")</div>";
-    if (d.subfolders.length===0) {
-      html += "<div style='padding:8px 12px;color:#aaa;font-size:12px;'>Sin subcarpetas</div>";
-    } else {
-      d.subfolders.forEach(function(sub){
-        html += "<div onclick='navigateFolder(\""+sub.id+"\",\""+sub.name.replace(/"/g,'')+"\" ,\""+d.id+"\",\""+d.name.replace(/["']/g,'')+"\")'  style='display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:0.5px solid #f0f0f0;font-size:13px;'>📁 "+sub.name+" <span style='color:#aaa;font-size:11px;'>▶</span></div>";
-      });
-    }
-    list.innerHTML = html;
-  } catch(e) { list.innerHTML = "<div style='padding:10px;color:#c00;font-size:13px;'>❌ "+e.message+"</div>"; }
+    var d=await proxyFetch({action:"listFolders",folderId:folderId||""});
+    if(d.error) throw new Error(d.error);
+    selectedFolderId=d.id;
+    var path=folderStack.map(function(f){return f.name;}).join(" › ");
+    breadcrumb.textContent=path?"📁 "+path+" › "+d.name:"📁 "+d.name+" (raíz)";
+    var html="";
+    if(folderStack.length>0) html+="<div onclick='goBack()' style='display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;color:#185FA5;font-size:13px;'>⬅️ <span>Volver</span></div>";
+    html+="<div onclick='selectFolder(\""+d.id+"\",\""+d.name.replace(/["']/g,'')+"\")'  style='display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:13px;background:#f0fff0;color:#2e7d32;font-weight:500;'>✅ Guardar aquí ("+d.name+")</div>";
+    if(d.subfolders.length===0){ html+="<div style='padding:8px 12px;color:#aaa;font-size:12px;'>Sin subcarpetas</div>"; }
+    else { d.subfolders.forEach(function(sub){ html+="<div onclick='navigateFolder(\""+sub.id+"\",\""+sub.name.replace(/"/g,'')+"\" ,\""+d.id+"\",\""+d.name.replace(/["']/g,'')+"\")'  style='display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:0.5px solid #f0f0f0;font-size:13px;'>📁 "+sub.name+" <span style='color:#aaa;font-size:11px;'>▶</span></div>"; }); }
+    list.innerHTML=html;
+  } catch(e){ list.innerHTML="<div style='padding:10px;color:#c00;font-size:13px;'>❌ "+e.message+"</div>"; }
 }
-function navigateFolder(id,name,parentId,parentName) { folderStack.push({id:parentId,name:parentName}); loadFolder(id); }
-function goBack() { var p=folderStack.pop(); if(p) loadFolder(p.id); }
-function selectFolder(id,name) {
-  selectedFolderId=id;
-  document.getElementById("subirStatus").innerHTML = "<div class='status-msg status-info'>📁 Carpeta seleccionada: "+name+"</div>";
-}
+function navigateFolder(id,name,parentId,parentName){ folderStack.push({id:parentId,name:parentName}); loadFolder(id); }
+function goBack(){ var p=folderStack.pop(); if(p) loadFolder(p.id); }
+function selectFolder(id,name){ selectedFolderId=id; document.getElementById("subirStatus").innerHTML="<div class='status-msg status-info'>📁 Carpeta seleccionada: "+name+"</div>"; }
 
-// ── SUBIDA DE ARCHIVOS ────────────────────────────────────────────────
+// ── SUBIDA DE ARCHIVOS ───────────────────────────────────────────────
 async function subirArchivo() {
-  var fileInput = document.getElementById("fileInput");
-  var status = document.getElementById("subirStatus");
-  var btn = document.getElementById("subirBtn");
-  if (!fileInput.files.length) { status.innerHTML="<div class='status-msg status-err'>❌ Selecciona un archivo primero.</div>"; return; }
-  if (!selectedFolderId) { status.innerHTML="<div class='status-msg status-err'>❌ Selecciona una carpeta de destino primero.</div>"; return; }
-  var file = fileInput.files[0];
-  btn.disabled=true;
+  var fileInput=document.getElementById("fileInput"), status=document.getElementById("subirStatus"), btn=document.getElementById("subirBtn");
+  if(!fileInput.files.length){status.innerHTML="<div class='status-msg status-err'>❌ Selecciona un archivo primero.</div>";return;}
+  if(!selectedFolderId){status.innerHTML="<div class='status-msg status-err'>❌ Selecciona una carpeta de destino primero.</div>";return;}
+  var file=fileInput.files[0]; btn.disabled=true;
   status.innerHTML="<div class='status-msg status-info'>⏳ Subiendo «"+file.name+"»…</div>";
   try {
-    var base64 = await new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(e){res(e.target.result.split(",")[1]);}; r.onerror=rej; r.readAsDataURL(file); });
-    var d = await proxyFetch({ action:"subirArchivo", nombre:file.name, mimeType:file.type, base64:base64, folderId:selectedFolderId });
-    if (d.error) throw new Error(d.error);
+    var base64=await new Promise(function(res,rej){var r=new FileReader();r.onload=function(e){res(e.target.result.split(",")[1]);};r.onerror=rej;r.readAsDataURL(file);});
+    var d=await proxyFetch({action:"subirArchivo",nombre:file.name,mimeType:file.type,base64:base64,folderId:selectedFolderId});
+    if(d.error) throw new Error(d.error);
     status.innerHTML="<div class='status-msg status-ok'>✅ «"+d.nombre+"» subido correctamente en 📁 "+d.carpeta+".</div>";
     fileInput.value="";
-  } catch(e) { status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>"; }
+  } catch(e){status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>";}
   btn.disabled=false;
 }
 
-// ── ADMIN SISTEMA ─────────────────────────────────────────────────────
+// ── ADMIN SISTEMA ────────────────────────────────────────────────────
 async function loadCacheStats() {
-  var el = document.getElementById("cacheStats"); el.textContent = "⏳ Consultando…";
-  try {
-    var d = await proxyFetch({ action:"cacheStats" });
-    if (d.error) throw new Error(d.error);
-    el.innerHTML = "⚡ <strong>"+d.total+"</strong> consultas en caché · <strong>"+d.usosTotales+"</strong> usos totales desde caché";
-  } catch(e) { el.textContent = "❌ Error: "+e.message; }
+  var el=document.getElementById("cacheStats"); el.textContent="⏳ Consultando…";
+  try{ var d=await proxyFetch({action:"cacheStats"}); if(d.error) throw new Error(d.error); el.innerHTML="⚡ <strong>"+d.total+"</strong> consultas en caché · <strong>"+d.usosTotales+"</strong> usos totales desde caché"; }
+  catch(e){ el.textContent="❌ Error: "+e.message; }
 }
 async function limpiarIndice() {
-  var btn=document.getElementById("limpiarBtn"), status=document.getElementById("limpiarStatus");
+  var btn=document.getElementById("limpiarBtn"),status=document.getElementById("limpiarStatus");
   btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Verificando archivos…</div>";
-  try {
-    var d=await proxyFetch({action:"limpiarIndice"});
-    if(d.error) throw new Error(d.error);
-    status.innerHTML=d.eliminados>0?"<div class='status-msg status-ok'>✅ Eliminadas "+d.eliminados+" entrada"+(d.eliminados!==1?"s":"")+" de archivos borrados.</div>":"<div class='status-msg status-ok'>✅ El índice está limpio.</div>";
-  } catch(e){status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>";}
+  try{ var d=await proxyFetch({action:"limpiarIndice"}); if(d.error) throw new Error(d.error); status.innerHTML=d.eliminados>0?"<div class='status-msg status-ok'>✅ Eliminadas "+d.eliminados+" entradas.</div>":"<div class='status-msg status-ok'>✅ El índice está limpio.</div>"; }
+  catch(e){ status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>"; }
   btn.disabled=false;
 }
 async function runIndex() {
-  var btn=document.getElementById("indexBtn"), status=document.getElementById("indexStatus");
-  btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Indexando… esto puede tardar varios minutos.</div>";
-  try {
-    var d=await proxyFetch({action:"index"});
-    if(d.error) throw new Error(d.error);
-    status.innerHTML="<div class='status-msg status-ok'>✅ Indexados "+d.indexed+" archivos.</div>";
-  } catch(e){status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>";}
+  var btn=document.getElementById("indexBtn"),status=document.getElementById("indexStatus");
+  btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Indexando…</div>";
+  try{ var d=await proxyFetch({action:"index"}); if(d.error) throw new Error(d.error); status.innerHTML="<div class='status-msg status-ok'>✅ Indexados "+d.indexed+" archivos.</div>"; }
+  catch(e){ status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>"; }
   btn.disabled=false;
 }
 async function activarTrigger() {
-  var status=document.getElementById("triggerStatus"), btn=document.getElementById("triggerBtnOn");
+  var status=document.getElementById("triggerStatus"),btn=document.getElementById("triggerBtnOn");
   btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Activando…</div>";
-  try {
-    var d=await proxyFetch({action:"setupTrigger"});
-    if(d.error) throw new Error(d.error);
-    status.innerHTML="<div class='status-msg status-ok'>✅ Trigger semanal activado.</div>";
-  } catch(e){status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>";}
+  try{ var d=await proxyFetch({action:"setupTrigger"}); if(d.error) throw new Error(d.error); status.innerHTML="<div class='status-msg status-ok'>✅ Trigger semanal activado.</div>"; }
+  catch(e){ status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>"; }
   btn.disabled=false;
 }
 async function desactivarTrigger() {
-  var status=document.getElementById("triggerStatus"), btn=document.getElementById("triggerBtnOff");
+  var status=document.getElementById("triggerStatus"),btn=document.getElementById("triggerBtnOff");
   btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Desactivando…</div>";
-  try {
-    var d=await proxyFetch({action:"eliminarTrigger"});
-    if(d.error) throw new Error(d.error);
-    status.innerHTML="<div class='status-msg status-ok'>✅ Trigger eliminado.</div>";
-  } catch(e){status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>";}
+  try{ var d=await proxyFetch({action:"eliminarTrigger"}); if(d.error) throw new Error(d.error); status.innerHTML="<div class='status-msg status-ok'>✅ Trigger eliminado.</div>"; }
+  catch(e){ status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>"; }
   btn.disabled=false;
 }
 async function checkTrigger() {
-  var status=document.getElementById("triggerStatus"), btn=document.getElementById("triggerBtnCheck");
+  var status=document.getElementById("triggerStatus"),btn=document.getElementById("triggerBtnCheck");
   btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Consultando…</div>";
-  try {
-    var d=await proxyFetch({action:"estadoTrigger"});
-    if(d.error) throw new Error(d.error);
-    status.innerHTML=d.activo?"<div class='status-msg status-ok'>✅ Trigger ACTIVO — cada lunes a las 3:00 AM.</div>":"<div class='status-msg status-err'>⚠️ Trigger NO activo.</div>";
-  } catch(e){status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>";}
+  try{ var d=await proxyFetch({action:"estadoTrigger"}); if(d.error) throw new Error(d.error); status.innerHTML=d.activo?"<div class='status-msg status-ok'>✅ Trigger ACTIVO — cada lunes a las 3:00 AM.</div>":"<div class='status-msg status-err'>⚠️ Trigger NO activo.</div>"; }
+  catch(e){ status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>"; }
   btn.disabled=false;
 }
 async function checkIndex() {
   var info=document.getElementById("indexInfo"); info.textContent="⏳ Consultando…";
-  try {
-    var d=await proxyFetch({action:"indexInfo"});
-    if(d.error) throw new Error(d.error);
-    info.textContent="📊 "+d.total+" documentos indexados · Última actualización: "+(d.lastUpdate||"nunca");
-  } catch(e){info.textContent="❌ Error: "+e.message;}
+  try{ var d=await proxyFetch({action:"indexInfo"}); if(d.error) throw new Error(d.error); info.textContent="📊 "+d.total+" documentos indexados · Última actualización: "+(d.lastUpdate||"nunca"); }
+  catch(e){ info.textContent="❌ Error: "+e.message; }
 }
 
-// ── ADMIN CONSUMO ─────────────────────────────────────────────────────
+// ── ADMIN CONSUMO ────────────────────────────────────────────────────
 async function loadConsumoTotal() {
   var el=document.getElementById("consumoTotalStats");
   el.innerHTML="<div style='color:#888;font-size:13px;'>⏳ Cargando…</div>";
-  try {
+  try{
     var total=await proxyFetch({action:"consumoTotal"});
     var diario=await proxyFetch({action:"consumoDiario"});
     el.innerHTML="<div class='stat-grid'><div class='stat-box'><div class='val'>"+total.totalConsultas+"</div><div class='lbl'>Consultas totales</div></div><div class='stat-box'><div class='val'>"+total.totalCoste+"€</div><div class='lbl'>Coste total</div></div><div class='stat-box'><div class='val'>"+((total.totalInput+total.totalOutput)||0).toLocaleString()+"</div><div class='lbl'>Tokens totales</div></div><div class='stat-box'><div class='val'>"+(total.usuarios?total.usuarios.length:0)+"</div><div class='lbl'>Usuarios activos</div></div></div>";
     renderChartDiario(diario.dias||[]);
-  } catch(e){el.innerHTML="<div style='color:#c00;'>❌ "+e.message+"</div>";}
+  } catch(e){ el.innerHTML="<div style='color:#c00;'>❌ "+e.message+"</div>"; }
 }
 function renderChartDiario(dias) {
   var ctx=document.getElementById("chartDiario");
   if(chartDiarioInst) chartDiarioInst.destroy();
   chartDiarioInst=new Chart(ctx,{type:"bar",data:{labels:dias.map(function(d){return d.fecha;}),datasets:[{label:"Consultas",data:dias.map(function(d){return d.consultas;}),backgroundColor:"#185FA5aa",borderColor:"#185FA5",borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}});
 }
-function toggleChartDiario() {
-  var w=document.getElementById("chartDiario").parentElement;
-  w.style.display=w.style.display==="none"?"block":"none";
+function toggleChartDiario() { var w=document.getElementById("chartDiario").parentElement; w.style.display=w.style.display==="none"?"block":"none"; }
+
+// ══════════════════════════════════════════════════════════════════════
+// ██████  ADMIN — MÓDULO USUARIOS  ████████████████████████████████████
+// ══════════════════════════════════════════════════════════════════════
+
+var adminUsuariosData = [];
+var adminUsuarioSeleccionado = null;
+
+async function loadAdminUsuarios() {
+  var cupoInfo = document.getElementById("cupoInfo");
+  cupoInfo.textContent = "⏳ Cargando…";
+  try {
+    var d = await proxyFetch({ action:"getUsuarios", email:currentUser.email });
+    if (d.error) throw new Error(d.error);
+    adminUsuariosData = d.usuarios || [];
+
+    // Cupo
+    cupoInfo.innerHTML =
+      "<strong>"+d.activos+"</strong> activos · " +
+      "<strong>"+d.espera+"</strong> en espera · " +
+      "Cupo: <strong>"+d.activos+" / "+d.cupo_max+"</strong> · " +
+      (d.plazas_libres > 0
+        ? "<span style='color:#2e7d32'>"+d.plazas_libres+" plazas libres</span>"
+        : "<span style='color:#c62828'>Cupo lleno</span>");
+
+    renderAdminUserList(adminUsuariosData);
+    cargarConfigAdmin();
+  } catch(e) { cupoInfo.textContent = "❌ Error: " + e.message; }
 }
 
-// ── ADMIN USUARIOS ────────────────────────────────────────────────────
-async function loadUsuarios() {
-  try { var d=await proxyFetch({action:"consumoTotal"}); allUsuarios=d.usuarios||[]; renderUserList(allUsuarios); } catch(e){}
-}
-function renderUserList(list) {
-  var el=document.getElementById("userList");
-  if(!list.length){el.innerHTML="<div style='padding:12px;color:#888;font-size:13px;'>No hay datos aún.</div>";return;}
-  el.innerHTML=list.map(function(u){
-    return "<div class='user-row' onclick='loadUserDetail(\""+u.email+"\")'><div><div style='font-weight:500'>"+(u.nombre||u.email)+"</div><div class='email'>"+u.email+"</div></div><div style='text-align:right'><div style='font-weight:600;color:#185FA5'>"+u.consultas+"</div><div class='email'>consulta"+(u.consultas!==1?"s":"")+"</div></div></div>";
+function renderAdminUserList(lista) {
+  var el = document.getElementById("adminUserList");
+  if (!lista.length) { el.innerHTML = "<div style='padding:12px;color:#888;font-size:13px;'>No hay usuarios registrados.</div>"; return; }
+
+  el.innerHTML = lista.map(function(u) {
+    var catClass = "cat-" + (u.estado === "espera" ? "espera" : u.categoria);
+    var catLabel = u.estado === "espera" ? "⏳ espera" : u.categoria;
+    var saldoInfo = u.categoria === "colaborador"
+      ? " · <strong style='color:#2e7d32'>" + u.saldo_restante.toFixed(2) + " € saldo</strong>"
+      : u.categoria === "cortesia"
+      ? " · " + u.mensajes_usados + " msgs usados"
+      : "";
+    return "<div class='user-row' style='cursor:pointer;' onclick='seleccionarUsuarioAdmin(\""+u.email+"\")'>" +
+      "<div><div style='font-weight:500;font-size:13px;'>"+(u.nombre||u.email)+"</div>" +
+      "<div class='email'>"+u.email+saldoInfo+"</div></div>" +
+      "<span class='categoria-pill "+catClass+"'>"+catLabel+"</span>" +
+      "</div>";
   }).join("");
 }
-function filterUsers() {
-  var q=document.getElementById("userSearchInput").value.toLowerCase();
-  renderUserList(allUsuarios.filter(function(u){return u.email.toLowerCase().includes(q)||(u.nombre||"").toLowerCase().includes(q);}));
+
+function filterAdminUsers() {
+  var q = document.getElementById("userSearchInput").value.toLowerCase();
+  renderAdminUserList(adminUsuariosData.filter(function(u){
+    return u.email.toLowerCase().includes(q) || (u.nombre||"").toLowerCase().includes(q);
+  }));
 }
-async function loadUserDetail(email) {
-  var el=document.getElementById("userDetail");
-  el.innerHTML="<div style='color:#888;font-size:13px;'>⏳ Cargando…</div>";
+
+function seleccionarUsuarioAdmin(email) {
+  var u = adminUsuariosData.find(function(x){ return x.email === email; });
+  if (!u) return;
+  adminUsuarioSeleccionado = u;
+
+  var card = document.getElementById("userDetailCard");
+  card.style.display = "block";
+  document.getElementById("userDetailNombre").textContent = (u.nombre || u.email);
+
+  // Info
+  var saldoLinea = u.categoria === "colaborador"
+    ? "<br>💰 Crédito: "+u.credito_euros.toFixed(2)+"€ · Gastado: "+u.credito_gastado.toFixed(2)+"€ · <strong>Saldo: "+u.saldo_restante.toFixed(2)+"€</strong>"
+    : u.categoria === "cortesia"
+    ? "<br>💬 Mensajes usados: "+u.mensajes_usados+" / "+3
+    : "";
+  document.getElementById("userDetailInfo").innerHTML =
+    "📧 "+u.email+"<br>" +
+    "📂 Categoría: <strong>"+u.categoria+"</strong> · Estado: <strong>"+u.estado+"</strong>"+
+    saldoLinea +
+    "<br>📊 Tokens: "+u.tokens_input.toLocaleString()+" entrada · "+u.tokens_output.toLocaleString()+" salida · Coste real: "+u.coste_total.toFixed(4)+"€" +
+    (u.motivo_bloqueo ? "<br>🚫 Motivo bloqueo: "+u.motivo_bloqueo : "");
+
+  // Acciones
+  var acciones = "";
+  if (u.estado === "espera") {
+    acciones += "<button class='btn-success' onclick='accionAdmin(\"activar\")'>✅ Activar</button> ";
+  }
+  if (u.categoria !== "vip") {
+    acciones += "<button class='btn-primary' onclick='accionAdmin(\"vip\")' style='background:#7b1fa2;'>⭐ Hacer VIP</button> ";
+  }
+  if (u.categoria !== "bloqueado") {
+    acciones += "<button class='btn-danger' onclick='pedirMotivoBloqueo()'>🚫 Bloquear</button> ";
+  } else {
+    acciones += "<button class='btn-success' onclick='mostrarDesbloqueo()'>🔓 Desbloquear</button> ";
+  }
+  if (u.categoria !== "cortesia") {
+    acciones += "<button class='btn-secondary' onclick='accionAdmin(\"cortesia\")'>🎁 Restablecer cortesía</button> ";
+  }
+  acciones += "<button class='btn-primary' onclick='mostrarRecarga()' style='background:#2e7d32;'>💳 Registrar aportación</button>";
+
+  document.getElementById("userDetailAcciones").innerHTML = acciones;
+  document.getElementById("userDetailStatus").innerHTML = "";
+
+  card.scrollIntoView({ behavior:"smooth", block:"nearest" });
+}
+
+async function accionAdmin(accion, extraParams) {
+  if (!adminUsuarioSeleccionado) return;
+  var status = document.getElementById("userDetailStatus");
+  status.innerHTML = "<div class='status-msg status-info'>⏳ Procesando…</div>";
+
+  var params = Object.assign({
+    action: "gestionarUsuario",
+    email: currentUser.email,
+    target_email: adminUsuarioSeleccionado.email,
+    accion: accion
+  }, extraParams || {});
+
   try {
-    var d=await proxyFetch({action:"consumoUsuario",email:email});
-    el.innerHTML="<div style='margin-top:8px;padding:12px;background:#f8f9fa;border-radius:8px;font-size:13px;'><strong>"+email+"</strong><br>"+d.total+" consulta"+(d.total!==1?"s":"")+" total"+(d.total!==1?"es":"")+" · "+d.coste+"€ coste acumulado</div>";
-    renderChartUsuario(d.dias||[],email);
-    document.getElementById("chartUserWrap").style.display="block";
-  } catch(e){el.innerHTML="<div style='color:#c00;'>❌ "+e.message+"</div>";}
+    var d = await proxyFetch(params);
+    if (d.error) throw new Error(d.error);
+    status.innerHTML = "<div class='status-msg status-ok'>✅ " + d.msg + "</div>";
+    // Recargar lista
+    await loadAdminUsuarios();
+    // Mantener selección actualizada
+    var actualizado = adminUsuariosData.find(function(u){ return u.email === adminUsuarioSeleccionado.email; });
+    if (actualizado) seleccionarUsuarioAdmin(actualizado.email);
+  } catch(e) {
+    status.innerHTML = "<div class='status-msg status-err'>❌ Error: " + e.message + "</div>";
+  }
 }
-function renderChartUsuario(dias,email) {
-  var ctx=document.getElementById("chartUsuario");
-  if(chartUsuarioInst) chartUsuarioInst.destroy();
-  chartUsuarioInst=new Chart(ctx,{type:"line",data:{labels:dias.map(function(d){return d.fecha;}),datasets:[{label:email,data:dias.map(function(d){return d.consultas;}),borderColor:"#4CAF50",backgroundColor:"#4CAF5022",tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}});
+
+function pedirMotivoBloqueo() {
+  var motivo = prompt("Motivo del bloqueo (opcional):");
+  if (motivo === null) return;
+  accionAdmin("bloquear", { motivo: motivo });
+}
+
+function mostrarDesbloqueo() {
+  var u = adminUsuarioSeleccionado;
+  var opcion = prompt(
+    "¿Qué hacer con el saldo al desbloquear a " + (u.nombre || u.email) + "?\n\n" +
+    "1 — Restaurar saldo previo\n" +
+    "2 — Resetear saldo a cero\n" +
+    "3 — Asignar saldo manualmente\n\n" +
+    "Escribe 1, 2 o 3:"
+  );
+  if (!opcion) return;
+  if (opcion === "1") { accionAdmin("desbloquear", { saldo_accion:"restaurar" }); }
+  else if (opcion === "2") { accionAdmin("desbloquear", { saldo_accion:"resetear" }); }
+  else if (opcion === "3") {
+    var saldo = prompt("Importe de saldo a asignar (€):");
+    if (!saldo || isNaN(parseFloat(saldo))) return;
+    accionAdmin("desbloquear", { saldo_accion:"asignar", saldo_valor: saldo });
+  }
+}
+
+function mostrarRecarga() {
+  var importe = prompt("Importe de la aportación recibida (€):\nEj: 5, 10 o 15");
+  if (!importe || isNaN(parseFloat(importe))) return;
+  accionAdmin("ajustar_credito", { importe: importe });
+}
+
+async function activarSiguienteUsuario() {
+  var status = document.getElementById("cupoStatus");
+  status.innerHTML = "<div class='status-msg status-info'>⏳ Activando…</div>";
+  try {
+    var d = await proxyFetch({ action:"activarSiguiente", email:currentUser.email });
+    if (d.error) throw new Error(d.error);
+    status.innerHTML = d.ok
+      ? "<div class='status-msg status-ok'>✅ " + d.msg + "</div>"
+      : "<div class='status-msg status-err'>⚠️ " + d.msg + "</div>";
+    await loadAdminUsuarios();
+  } catch(e) { status.innerHTML = "<div class='status-msg status-err'>❌ " + e.message + "</div>"; }
+}
+
+async function verListaEspera() {
+  var container = document.getElementById("listaEsperaContainer");
+  container.style.display = "block";
+  container.innerHTML = "⏳ Cargando lista de espera…";
+  try {
+    var d = await proxyFetch({ action:"getListaEspera", email:currentUser.email });
+    if (d.error) throw new Error(d.error);
+    if (!d.lista.length) { container.innerHTML = "<div style='color:#888;font-size:13px;'>No hay usuarios en lista de espera.</div>"; return; }
+    container.innerHTML = "<div style='font-size:12px;color:#888;margin-bottom:8px;'>"+d.total+" usuarios esperando:</div>" +
+      d.lista.map(function(u){
+        return "<div style='background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:13px;'>" +
+          "<div><strong>"+(u.nombre||u.email)+"</strong><br><span style='font-size:11px;color:#888;'>"+u.email+" · Alta: "+u.fecha_alta+"</span></div>" +
+          "<button class='btn-success' style='font-size:11px;padding:4px 10px;' onclick='activarUsuarioDirecto(\""+u.email+"\")'>✅ Activar</button>" +
+          "</div>";
+      }).join("");
+  } catch(e) { container.innerHTML = "<div style='color:#c00;font-size:13px;'>❌ " + e.message + "</div>"; }
+}
+
+async function activarUsuarioDirecto(email) {
+  try {
+    var d = await proxyFetch({ action:"gestionarUsuario", email:currentUser.email, target_email:email, accion:"activar" });
+    if (d.error) throw new Error(d.error);
+    showCopyToast("✅ " + d.msg);
+    await loadAdminUsuarios();
+    verListaEspera();
+  } catch(e) { showCopyToast("❌ Error: " + e.message); }
+}
+
+async function cargarConfigAdmin() {
+  try {
+    var d = await proxyFetch({ action:"getConfig", email:currentUser.email });
+    if (d.error || !d.config) return;
+    if (d.config.CUPO_MAX)          document.getElementById("cfgCupoMax").value          = d.config.CUPO_MAX;
+    if (d.config.MENSAJES_CORTESIA) document.getElementById("cfgMensajesCortesia").value = d.config.MENSAJES_CORTESIA;
+    if (d.config.MARGEN_FACTOR)     document.getElementById("cfgMargenFactor").value     = d.config.MARGEN_FACTOR;
+  } catch(e) {}
+}
+
+async function guardarConfig() {
+  var status = document.getElementById("configStatus");
+  status.innerHTML = "<div class='status-msg status-info'>⏳ Guardando…</div>";
+  var cupo     = document.getElementById("cfgCupoMax").value;
+  var mensajes = document.getElementById("cfgMensajesCortesia").value;
+  var margen   = document.getElementById("cfgMargenFactor").value;
+  try {
+    if (cupo)     await proxyFetch({ action:"setConfig", email:currentUser.email, clave:"CUPO_MAX",          valor:cupo });
+    if (mensajes) await proxyFetch({ action:"setConfig", email:currentUser.email, clave:"MENSAJES_CORTESIA", valor:mensajes });
+    if (margen)   await proxyFetch({ action:"setConfig", email:currentUser.email, clave:"MARGEN_FACTOR",     valor:margen });
+    status.innerHTML = "<div class='status-msg status-ok'>✅ Configuración guardada correctamente.</div>";
+    await loadAdminUsuarios();
+  } catch(e) {
+    status.innerHTML = "<div class='status-msg status-err'>❌ Error: " + e.message + "</div>";
+  }
 }
 </script>
 </body>
