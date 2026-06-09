@@ -1,1 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Política de Privacidad — Funcionarios RC</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root {
+      --azul-rc:     #1a3a5c;
+      --azul-suave:  #2d5986;
+      --acento:      #c8a84b;
+      --fondo:       #f7f8fa;
+      --blanco:      #ffffff;
+      --texto:       #1e2a38;
+      --texto-suave: #4a5568;
+      --borde:       #dde3ea;
+      --radio:       6px;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--fondo);
+      color: var(--texto);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    /* ── Cabecera ── */
+    header {
+      background: var(--azul-rc);
+      color: var(--blanco);
+      padding: 28px 0 24px;
+      border-bottom: 3px solid var(--acento);
+    }
+    .header-inner {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .logo-escudo {
+      width: 44px;
+      height: 44px;
+      background: var(--acento);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .header-texto h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .header-texto p {
+      font-size: 0.82rem;
+      opacity: 0.75;
+      margin-top: 2px;
+    }
+
+    /* ── Contenedor principal ── */
+    main {
+      max-width: 820px;
+      margin: 40px auto;
+      padding: 0 24px 60px;
+    }
+
+    /* ── Aviso de fecha ── */
+    .meta-fecha {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--blanco);
+      border: 1px solid var(--borde);
+      border-left: 3px solid var(--acento);
+      border-radius: var(--radio);
+      padding: 10px 16px;
+      font-size: 0.82rem;
+      color: var(--texto-suave);
+      margin-bottom: 32px;
+    }
+
+    /* ── Secciones ── */
+    section {
+      background: var(--blanco);
+      border: 1px solid var(--borde);
+      border-radius: var(--radio);
+      padding: 28px 32px;
+      margin-bottom: 20px;
+    }
+    section h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--azul-rc);
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--borde);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    section h2 .num {
+      background: var(--azul-rc);
+      color: var(--blanco);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    section p { color: var(--texto-suave); margin-bottom: 10px; }
+    section p:last-child { margin-bottom: 0; }
+    section ul {
+      list-style: none;
+      padding: 0;
+      margin: 10px 0;
+    }
+    section ul li {
+      padding: 6px 0 6px 18px;
+      position: relative;
+      color: var(--texto-suave);
+      border-bottom: 1px solid var(--fondo);
+    }
+    section ul li:last-child { border-bottom: none; }
+    section ul li::before {
+      content: '›';
+      position: absolute;
+      left: 0;
+      color: var(--acento);
+      font-weight: 700;
+    }
+
+    /* ── Tabla de datos ── */
+    .tabla-datos {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+      font-size: 0.88rem;
+    }
+    .tabla-datos th {
+      background: var(--azul-rc);
+      color: var(--blanco);
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+    }
+    .tabla-datos td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--borde);
+      color: var(--texto-suave);
+      vertical-align: top;
+    }
+    .tabla-datos tr:last-child td { border-bottom: none; }
+    .tabla-datos tr:nth-child(even) td { background: var(--fondo); }
+
+    /* ── Derechos ── */
+    .derechos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .derecho-card {
+      background: var(--fondo);
+      border: 1px solid var(--borde);
+      border-top: 3px solid var(--azul-suave);
+      border-radius: var(--radio);
+      padding: 14px;
+    }
+    .derecho-card strong {
+      display: block;
+      color: var(--azul-rc);
+      font-size: 0.88rem;
+      margin-bottom: 4px;
+    }
+    .derecho-card span {
+      font-size: 0.80rem;
+      color: var(--texto-suave);
+    }
+
+    /* ── Caja de contacto ── */
+    .caja-contacto {
+      background: linear-gradient(135deg, var(--azul-rc), var(--azul-suave));
+      color: var(--blanco);
+      border-radius: var(--radio);
+      padding: 24px 28px;
+      margin-top: 14px;
+    }
+    .caja-contacto p { color: rgba(255,255,255,0.85); margin-bottom: 8px; }
+    .caja-contacto a {
+      color: var(--acento);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .caja-contacto a:hover { text-decoration: underline; }
+    .caja-contacto .dato {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin: 6px 0;
+      font-size: 0.88rem;
+    }
+    .caja-contacto .dato span:first-child {
+      opacity: 0.65;
+      min-width: 100px;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Advertencia AEPD ── */
+    .aviso-aepd {
+      background: #fff8e6;
+      border: 1px solid #f0d070;
+      border-left: 4px solid var(--acento);
+      border-radius: var(--radio);
+      padding: 14px 18px;
+      margin-top: 14px;
+      font-size: 0.85rem;
+      color: #7a5a00;
+    }
+    .aviso-aepd a { color: #7a5a00; font-weight: 600; }
+
+    /* ── Volver ── */
+    .volver {
+      text-align: center;
+      margin-top: 36px;
+    }
+    .volver a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--azul-rc);
+      color: var(--blanco);
+      text-decoration: none;
+      padding: 11px 24px;
+      border-radius: var(--radio);
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+    .volver a:hover { background: var(--azul-suave); }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 0.78rem;
+      color: var(--texto-suave);
+      border-top: 1px solid var(--borde);
+    }
+
+    @media (max-width: 600px) {
+      section { padding: 20px 18px; }
+      .derechos-grid { grid-template-columns: 1fr 1fr; }
+      .tabla-datos { font-size: 0.80rem; }
+      .tabla-datos th, .tabla-datos td { padding: 8px 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo-escudo">⚖️</div>
+    <div class="header-texto">
+      <h1>Política de Privacidad</h1>
+      <p>Asistente Jurídico para Funcionarios del Registro Civil</p>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <div class="meta-fecha">
+    📅 Versión 1.0 — Junio de 2025 &nbsp;·&nbsp; Última revisión: junio de 2025
+  </div>
+
+  <!-- 1. Responsable -->
+  <section>
+    <h2><span class="num">1</span> Responsable del tratamiento</h2>
+    <p>En cumplimiento del Reglamento (UE) 2016/679 del Parlamento Europeo y del Consejo (RGPD) y de la Ley Orgánica 3/2018, de 5 de diciembre, de Protección de Datos Personales y garantía de los derechos digitales (LOPDGDD), se informa que el responsable del tratamiento de los datos recogidos a través de esta aplicación es:</p>
+    <div class="caja-contacto">
+      <div class="dato"><span>Nombre</span> <strong>José Eugenio Carballo Ventura</strong></div>
+      <div class="dato"><span>NIF</span> <strong>42168992X</strong></div>
+      <div class="dato"><span>Cargo</span> <strong>Tramitador de la Oficina General del Registro Civil de Santa Cruz de La Palma</strong></div>
+      <div class="dato"><span>Contacto</span> <a href="mailto:fororegistrocivil@gmail.com">fororegistrocivil@gmail.com</a></div>
+    </div>
+  </section>
+
+  <!-- 2. Qué datos recogemos -->
+  <section>
+    <h2><span class="num">2</span> Datos que recogemos</h2>
+    <p>La aplicación recoge únicamente los datos estrictamente necesarios para su funcionamiento:</p>
+    <table class="tabla-datos">
+      <thead>
+        <tr>
+          <th>Dato</th>
+          <th>Origen</th>
+          <th>Finalidad</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Dirección de correo electrónico (Gmail)</td>
+          <td>Google OAuth al iniciar sesión</td>
+          <td>Identificación y control de acceso</td>
+        </tr>
+        <tr>
+          <td>Nombre</td>
+          <td>Proporcionado por el usuario al registrarse</td>
+          <td>Personalización de la interfaz</td>
+        </tr>
+        <tr>
+          <td>Fecha de alta y fecha de aceptación de esta política</td>
+          <td>Generado automáticamente</td>
+          <td>Registro del consentimiento</td>
+        </tr>
+        <tr>
+          <td>Categoría de usuario y saldo de crédito</td>
+          <td>Asignado por el administrador</td>
+          <td>Gestión del acceso y uso del servicio</td>
+        </tr>
+        <tr>
+          <td>Número de mensajes y consumo de tokens (metadatos técnicos)</td>
+          <td>Generado automáticamente</td>
+          <td>Control de costes y sostenimiento del servicio</td>
+        </tr>
+        <tr>
+          <td>Contenido de las consultas realizadas</td>
+          <td>Introducido por el usuario</td>
+          <td>Procesamiento por la IA para generar respuesta. Se almacena de forma anónima, sin vinculación a ningún usuario identificado</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>No se recogen datos de categorías especiales (salud, ideología, religión, origen racial, etc.).</p>
+  </section>
+
+  <!-- 3. Finalidad y base legitimadora -->
+  <section>
+    <h2><span class="num">3</span> Finalidad y base legitimadora</h2>
+    <p>Los datos se tratan con las siguientes finalidades:</p>
+    <ul>
+      <li>Permitir el acceso autenticado a la aplicación y verificar la identidad del usuario.</li>
+      <li>Controlar el uso del servicio dentro de los límites acordados (mensajes de cortesía o crédito disponible).</li>
+      <li>Gestionar las aportaciones voluntarias para el sostenimiento del servicio.</li>
+      <li>Garantizar la seguridad del servicio e impedir usos fraudulentos o abusivos.</li>
+      <li>Cumplir con las obligaciones legales aplicables.</li>
+    </ul>
+    <p>La base legitimadora del tratamiento es el <strong>consentimiento explícito del usuario</strong>, manifestado mediante la aceptación de esta política en el momento del registro (art. 6.1.a RGPD). Dicho consentimiento es revocable en cualquier momento solicitando la baja voluntaria.</p>
+  </section>
+
+  <!-- 4. Destinatarios y transferencias -->
+  <section>
+    <h2><span class="num">4</span> Destinatarios y transferencias internacionales</h2>
+    <p>Los datos son tratados por los siguientes proveedores de servicios tecnológicos, en calidad de encargados del tratamiento:</p>
+    <table class="tabla-datos">
+      <thead>
+        <tr>
+          <th>Proveedor</th>
+          <th>Servicio</th>
+          <th>País</th>
+          <th>Garantía</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Google LLC</strong></td>
+          <td>Autenticación (OAuth), almacenamiento de datos (Google Sheets), alojamiento (GitHub Pages vía Google)</td>
+          <td>EE.UU.</td>
+          <td>Cláusulas Contractuales Tipo (CCT) de la UE. <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Política de privacidad Google</a></td>
+        </tr>
+        <tr>
+          <td><strong>Anthropic, Inc.</strong></td>
+          <td>Procesamiento de consultas mediante inteligencia artificial (API de Claude)</td>
+          <td>EE.UU.</td>
+          <td>Data Processing Agreement (DPA). Las consultas se transmiten sin datos identificativos del usuario. <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener">Política de privacidad Anthropic</a></td>
+        </tr>
+        <tr>
+          <td><strong>GitHub, Inc.</strong></td>
+          <td>Alojamiento de la aplicación web (GitHub Pages)</td>
+          <td>EE.UU.</td>
+          <td>Cláusulas Contractuales Tipo (CCT) de la UE. <a href="https://docs.github.com/es/site-policy/privacy-policies/github-privacy-statement" target="_blank" rel="noopener">Política de privacidad GitHub</a></td>
+        </tr>
+      </tbody>
+    </table>
+    <p>No se ceden datos a terceros fuera de los indicados, ni se utilizan con fines comerciales o publicitarios.</p>
+  </section>
+
+  <!-- 5. Plazo de conservación -->
+  <section>
+    <h2><span class="num">5</span> Plazo de conservación</h2>
+    <p>Los datos personales se conservarán mientras la cuenta del usuario permanezca activa. Cuando el usuario solicite la baja voluntaria:</p>
+    <ul>
+      <li>Los datos identificativos (email, nombre) serán <strong>anonimizados de forma irreversible</strong>.</li>
+      <li>Los metadatos técnicos agregados (consumo total de tokens, fechas de actividad) podrán conservarse de forma disociada para estadísticas internas del servicio.</li>
+      <li>Las consultas almacenadas, al ser anónimas desde su origen, no se verán afectadas por la baja.</li>
+    </ul>
+    <p>En caso de bloqueo de una cuenta por uso fraudulento, los datos podrán conservarse durante el tiempo necesario para prevenir nuevos accesos indebidos, con base en el interés legítimo del responsable (art. 6.1.f RGPD).</p>
+  </section>
+
+  <!-- 6. Derechos -->
+  <section>
+    <h2><span class="num">6</span> Sus derechos</h2>
+    <p>En virtud del RGPD, usted tiene derecho a:</p>
+    <div class="derechos-grid">
+      <div class="derecho-card">
+        <strong>Acceso</strong>
+        <span>Saber qué datos suyos tratamos y obtener una copia.</span>
+      </div>
+      <div class="derecho-card">
+        <strong>Rectificación</strong>
+        <span>Corregir datos inexactos o incompletos.</span>
+      </div>
+      <div class="derecho-card">
+        <strong>Supresión</strong>
+        <span>Solicitar la eliminación o anonimización de sus datos.</span>
+      </div>
+      <div class="derecho-card">
+        <strong>Limitación</strong>
+        <span>Solicitar que suspendamos temporalmente el tratamiento.</span>
+      </div>
+      <div class="derecho-card">
+        <strong>Portabilidad</strong>
+        <span>Recibir sus datos en formato estructurado y legible.</span>
+      </div>
+      <div class="derecho-card">
+        <strong>Oposición</strong>
+        <span>Oponerse al tratamiento en los casos previstos por la ley.</span>
+      </div>
+      <div class="derecho-card">
+        <strong>Revocación</strong>
+        <span>Retirar el consentimiento en cualquier momento, sin efecto retroactivo.</span>
+      </div>
+      <div class="derecho-card">
+        <strong>Baja</strong>
+        <span>Eliminar su cuenta directamente desde la aplicación.</span>
+      </div>
+    </div>
+    <p style="margin-top:16px;">Para ejercer cualquiera de estos derechos, diríjase al responsable del tratamiento indicando claramente el derecho que desea ejercer:</p>
+    <div class="caja-contacto" style="margin-top:12px;">
+      <div class="dato"><span>Email</span> <a href="mailto:fororegistrocivil@gmail.com">fororegistrocivil@gmail.com</a></div>
+      <div class="dato"><span>Asunto</span> <strong>Ejercicio de derechos RGPD — [derecho solicitado]</strong></div>
+      <p style="margin-top:10px; font-size:0.82rem;">Le responderemos en el plazo máximo de <strong>30 días</strong> desde la recepción de su solicitud.</p>
+    </div>
+    <div class="aviso-aepd">
+      Si considera que el tratamiento de sus datos no es conforme a la normativa, tiene derecho a presentar una reclamación ante la <strong>Agencia Española de Protección de Datos (AEPD)</strong>: <a href="https://www.aepd.es" target="_blank" rel="noopener">www.aepd.es</a>
+    </div>
+  </section>
+
+  <!-- 7. Seguridad -->
+  <section>
+    <h2><span class="num">7</span> Medidas de seguridad</h2>
+    <p>Se aplican las siguientes medidas técnicas y organizativas para proteger sus datos:</p>
+    <ul>
+      <li>Acceso a la aplicación exclusivamente mediante autenticación OAuth 2.0 de Google (sin contraseñas almacenadas localmente).</li>
+      <li>Transmisión de datos cifrada mediante HTTPS en todo momento.</li>
+      <li>Almacenamiento en Google Sheets con acceso restringido al responsable del tratamiento.</li>
+      <li>Las consultas realizadas a la IA se transmiten sin datos identificativos del usuario.</li>
+      <li>Acceso al panel de administración limitado exclusivamente a la cuenta autorizada del responsable.</li>
+    </ul>
+  </section>
+
+  <!-- 8. Cookies -->
+  <section>
+    <h2><span class="num">8</span> Cookies y almacenamiento local</h2>
+    <p>Esta aplicación utiliza <strong>almacenamiento local del navegador</strong> (localStorage) exclusivamente para mantener la sesión activa del usuario durante un máximo de 1 hora, evitando que tenga que identificarse en cada consulta. No se utilizan cookies de rastreo, publicidad ni analítica de terceros.</p>
+    <p>Puede eliminar estos datos en cualquier momento desde la configuración de privacidad de su navegador.</p>
+  </section>
+
+  <!-- 9. Modificaciones -->
+  <section>
+    <h2><span class="num">9</span> Modificaciones de esta política</h2>
+    <p>Esta política puede actualizarse para adaptarse a cambios en la normativa aplicable o en el funcionamiento del servicio. Cuando se produzcan cambios relevantes, se informará a los usuarios en el momento de su próximo acceso, solicitando nueva aceptación si fuera necesario.</p>
+    <p>La versión vigente estará siempre disponible en esta misma dirección.</p>
+  </section>
+
+  <div class="volver">
+    <a href="index.html">← Volver a la aplicación</a>
+  </div>
+
+</main>
+
+<footer>
+  Desarrollado por José Eugenio Carballo · OG RC S/C de La Palma &nbsp;·&nbsp;
+  Asistente Jurídico para Funcionarios del Registro Civil
+</footer>
+
+</body>
+</html>
