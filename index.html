@@ -579,7 +579,6 @@ window.onload = function() {
       var session = JSON.parse(saved);
       if (Date.now() < session.expires) {
         currentUser = session.user;
-        // Restaurar userStatus si existe
         if (session.userStatus) userStatus = session.userStatus;
         showApp();
         return;
@@ -594,7 +593,6 @@ window.onload = function() {
 function handleCredential(resp) {
   var p = parseJwt(resp.credential);
   currentUser = { email: p.email, name: p.name, picture: p.picture };
-  // Guardar sesión básica (el userStatus se guarda tras verificarAcceso)
   localStorage.setItem(SESSION_KEY, JSON.stringify({ user: currentUser, expires: Date.now() + SESSION_TTL }));
   showApp();
 }
@@ -604,29 +602,22 @@ function parseJwt(token) {
 }
 
 async function showApp() {
-  // Ocultar todos los paneles
   document.getElementById("loginPanel").style.display = "none";
   document.getElementById("esperaPanel").style.display = "none";
   document.getElementById("limitePanel").style.display = "none";
 
-  // Mostrar badge de usuario inmediatamente
   document.getElementById("userBadge").style.display = "flex";
   document.getElementById("userAvatar").src = currentUser.picture;
   document.getElementById("userName").textContent = currentUser.name;
 
-  // Admin siempre tiene acceso directo
   if (currentUser.email === ADMIN_EMAIL) {
     document.getElementById("btn-admin").style.display = "block";
     mostrarMainApp();
     return;
   }
-  // Mostrar pestaña Mi cuenta solo para usuarios normales
   document.getElementById("btn-micuenta").style.display = "block";
-  
 
-  // Para usuarios normales: registrar y verificar acceso
   try {
-    // 1. Registrar (si es la primera vez, crea la fila)
     var reg = await proxyFetch({
       action: "registrarUsuario",
       email: currentUser.email,
@@ -634,7 +625,6 @@ async function showApp() {
       consentimiento_rgpd: "1"
     });
 
-    // 2. Verificar acceso
     var acceso = await proxyFetch({ action: "verificarAcceso", email: currentUser.email });
 
     if (!acceso.acceso) {
@@ -648,12 +638,11 @@ async function showApp() {
       }
       if (acceso.motivo === "bloqueado") {
         document.getElementById("esperaPanel").style.display = "flex";
-        document.querySelector("#esperaPanel .limite-titulo") && (document.querySelector("#esperaPanel .limite-msg").textContent = "Tu acceso ha sido suspendido. Contacta con el administrador.");
+        document.querySelector("#esperaPanel .limite-msg") && (document.querySelector("#esperaPanel .limite-msg").textContent = "Tu acceso ha sido suspendido. Contacta con el administrador.");
         return;
       }
     }
 
-    // Actualizar estado de usuario
     userStatus = {
       categoria:       acceso.categoria || reg.categoria || "cortesia",
       estado:          acceso.estado || "activo",
@@ -664,7 +653,6 @@ async function showApp() {
       saldo_restante:  acceso.saldo_restante || 0
     };
 
-    // Guardar en sesión
     var session = JSON.parse(localStorage.getItem(SESSION_KEY) || "{}");
     session.userStatus = userStatus;
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
@@ -673,7 +661,6 @@ async function showApp() {
     mostrarMainApp();
 
   } catch(e) {
-    // Si falla la verificación, mostramos la app igualmente (graceful degradation)
     console.warn("Error verificando acceso:", e.message);
     mostrarMainApp();
   }
@@ -730,7 +717,6 @@ async function solicitarBajaUsuario() {
   } catch(e) { showCopyToast("❌ Error: " + e.message); }
 }
 
-// ── Actualizar badge de saldo en cabecera ────────────────────────────
 function actualizarSaldoBadge() {
   var badge = document.getElementById("saldoBadge");
   if (!userStatus.categoria || currentUser.email === ADMIN_EMAIL) { badge.style.display = "none"; return; }
@@ -942,23 +928,71 @@ function renderFiles() {
 function toggleDoc(id) { selectedDocs=selectedDocs.includes(id)?selectedDocs.filter(function(d){return d!==id;}):[...selectedDocs,id]; renderFiles(); updateContextBar(); }
 function clearSelection() { selectedDocs=[]; renderFiles(); updateContextBar(); }
 
-// ── RENDER MARKDOWN ──────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════
+// ██  FIX 1 — SEGURIDAD XSS: sanitizeHTML + renderMarkdown seguro  ████
+// ══════════════════════════════════════════════════════════════════════
+function sanitizeHTML(str) {
+  return (str || "")
+    // Eliminar etiquetas <script>...</script> completas
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+    // Eliminar eventos inline: onclick="...", onload='...', etc.
+    .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, "")
+    .replace(/\bon\w+\s*=\s*[^\s>]*/gi, "")
+    // Eliminar protocolos peligrosos
+    .replace(/javascript\s*:/gi, "")
+    .replace(/vbscript\s*:/gi, "")
+    // Eliminar data: URIs (pueden ejecutar código en algunos contextos)
+    .replace(/data\s*:\s*text\s*\/\s*html/gi, "");
+}
+
 function renderMarkdown(text) {
+  // 1. Sanitizar primero para eliminar cualquier código malicioso
+  text = sanitizeHTML(text || "");
+
+  // 2. Extraer links válidos ANTES de escapar HTML
+  //    (así los brackets y paréntesis del markdown no quedan escapados)
   var links = [];
-  text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, function(match,label,url){
-    var placeholder = "%%LINK"+links.length+"%%";
-    links.push("<a href='"+url+"' target='_blank' style='color:#185FA5;text-decoration:underline;'>"+label+"</a>");
+  text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, function(match, label, url) {
+    // Validar que la URL sea estrictamente http o https
+    if (!/^https?:\/\//i.test(url)) return match;
+    // Escapar la etiqueta del link para evitar XSS en el texto visible
+    var safeLabel = label.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    var placeholder = "%%LINK" + links.length + "%%";
+    links.push(
+      "<a href='" + url + "' target='_blank' rel='noopener noreferrer' " +
+      "style='color:#185FA5;text-decoration:underline;'>" + safeLabel + "</a>"
+    );
     return placeholder;
   });
+
+  // 3. Escapar todo el HTML restante
   text = text
-    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-    .replace(/^### (.+)$/gm,"<h3>$1</h3>").replace(/^## (.+)$/gm,"<h2>$1</h2>").replace(/^# (.+)$/gm,"<h1>$1</h1>")
-    .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/\*(.+?)\*/g,"<em>$1</em>").replace(/`(.+?)`/g,"<code>$1</code>")
-    .replace(/^[-•] (.+)$/gm,"<li>$1</li>").replace(/(<li>.*<\/li>)/gs,"<ul>$1</ul>")
-    .replace(/\n{2,}/g,"<br><br>").replace(/\n/g,"<br>");
-  links.forEach(function(link,i){ text=text.replace("%%LINK"+i+"%%",link); });
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  // 4. Aplicar transformaciones markdown (sobre texto ya escapado y seguro)
+  text = text
+    .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+    .replace(/^## (.+)$/gm,  "<h2>$1</h2>")
+    .replace(/^# (.+)$/gm,   "<h1>$1</h1>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g,     "<em>$1</em>")
+    .replace(/`(.+?)`/g,       "<code style='background:#f4f4f4;padding:1px 4px;border-radius:3px;font-family:monospace;font-size:0.92em;'>$1</code>")
+    .replace(/^[-•] (.+)$/gm,  "<li>$1</li>")
+    .replace(/(<li>[\s\S]+?<\/li>)/g, "<ul>$1</ul>")
+    .replace(/<\/ul>\s*<ul>/g, "")
+    .replace(/\n{2,}/g, "<br><br>")
+    .replace(/\n/g, "<br>");
+
+  // 5. Restaurar los links ya saneados
+  links.forEach(function(link, i) {
+    text = text.replace("%%LINK" + i + "%%", link);
+  });
+
   return text;
 }
+// ══════════════════════════════════════════════════════════════════════
 
 // ── MENSAJES ─────────────────────────────────────────────────────────
 function renderMessages() {
@@ -995,24 +1029,20 @@ async function sendMessage() {
   var text = input.value.trim();
   if (!text || loading) return;
 
-  // Verificar acceso antes de enviar (para usuarios no admin)
   if (currentUser && currentUser.email !== ADMIN_EMAIL) {
     try {
       var acceso = await proxyFetch({ action:"verificarAcceso", email:currentUser.email });
       if (!acceso.acceso) {
-        // Actualizar estado y mostrar pantalla de límite
         userStatus.mensajes_usados = acceso.mensajes_usados || userStatus.mensajes_usados;
         userStatus.saldo_restante  = acceso.saldo_restante  || 0;
         mostrarMainApp_ocultar();
         mostrarLimitePanel(acceso);
         return;
       }
-      // Actualizar estado en memoria
       userStatus.mensajes_usados = acceso.mensajes_usados || userStatus.mensajes_usados;
       userStatus.saldo_restante  = acceso.saldo_restante  || userStatus.saldo_restante;
       actualizarSaldoBadge();
     } catch(e) {
-      // Si falla la verificación, continuar (no bloquear por error de red)
       console.warn("Error verificando acceso antes de enviar:", e.message);
     }
   }
@@ -1030,7 +1060,6 @@ async function sendMessage() {
       messages.push({ role:"assistant", content:result.reply, docsUsados:result.docsUsados });
       guardarEnHistorial(text, result.reply, result.docsUsados);
 
-      // Registrar consumo de tokens en el sistema de usuarios
       if (currentUser && currentUser.email !== ADMIN_EMAIL && result.usage_tokens) {
         registrarConsumoUsuario(result.usage_tokens.input || 0, result.usage_tokens.output || 0);
       }
@@ -1065,7 +1094,6 @@ async function registrarConsumoUsuario(inputTokens, outputTokens) {
       output_tokens: outputTokens
     });
     if (r.ok) {
-      // Actualizar estado local
       if (r.mensajes_usados !== undefined) userStatus.mensajes_usados = r.mensajes_usados;
       if (r.saldo_restante  !== undefined) userStatus.saldo_restante  = r.saldo_restante;
       if (r.credito_gastado !== undefined) userStatus.credito_gastado = r.credito_gastado;
@@ -1219,7 +1247,6 @@ async function loadAdminUsuarios() {
     if (d.error) throw new Error(d.error);
     adminUsuariosData = d.usuarios || [];
 
-    // Cupo
     cupoInfo.innerHTML =
       "<strong>"+d.activos+"</strong> activos · " +
       "<strong>"+d.espera+"</strong> en espera · " +
@@ -1269,7 +1296,6 @@ function seleccionarUsuarioAdmin(email) {
   card.style.display = "block";
   document.getElementById("userDetailNombre").textContent = (u.nombre || u.email);
 
-  // Info
   var saldoLinea = u.categoria === "colaborador"
     ? "<br>💰 Crédito: "+u.credito_euros.toFixed(2)+"€ · Gastado: "+u.credito_gastado.toFixed(2)+"€ · <strong>Saldo: "+u.saldo_restante.toFixed(2)+"€</strong>"
     : u.categoria === "cortesia"
@@ -1282,7 +1308,6 @@ function seleccionarUsuarioAdmin(email) {
     "<br>📊 Tokens: "+u.tokens_input.toLocaleString()+" entrada · "+u.tokens_output.toLocaleString()+" salida · Coste real: "+u.coste_total.toFixed(4)+"€" +
     (u.motivo_bloqueo ? "<br>🚫 Motivo bloqueo: "+u.motivo_bloqueo : "");
 
-  // Acciones
   var acciones = "";
   if (u.estado === "espera") {
     acciones += "<button class='btn-success' onclick='accionAdmin(\"activar\")'>✅ Activar</button> ";
@@ -1322,9 +1347,7 @@ async function accionAdmin(accion, extraParams) {
     var d = await proxyFetch(params);
     if (d.error) throw new Error(d.error);
     status.innerHTML = "<div class='status-msg status-ok'>✅ " + d.msg + "</div>";
-    // Recargar lista
     await loadAdminUsuarios();
-    // Mantener selección actualizada
     var actualizado = adminUsuariosData.find(function(u){ return u.email === adminUsuarioSeleccionado.email; });
     if (actualizado) seleccionarUsuarioAdmin(actualizado.email);
   } catch(e) {
@@ -1419,7 +1442,6 @@ async function cargarMiCuenta() {
   var uso  = document.getElementById("micuenta-uso");
   if (!currentUser) return;
 
-  // Datos estáticos de sesión
   var catLabel = { cortesia:"🎁 Cortesía", colaborador:"💚 Colaborador", vip:"⭐ VIP", bloqueado:"🚫 Bloqueado" };
   var saldoLinea = "";
   if (userStatus.categoria === "cortesia") {
@@ -1466,7 +1488,7 @@ async function guardarConfig() {
     status.innerHTML = "<div class='status-msg status-err'>❌ Error: " + e.message + "</div>";
   }
 }
-  
+
 </script>
 </body>
 </html>
