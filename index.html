@@ -748,6 +748,11 @@ async function reportarError(idx, event) {
   var nota = prompt("Describe brevemente el error (opcional):");
   if (nota === null) return;
   try {
+    var revision = await proxyFetch({ action:"verificarRevision", pregunta:item.pregunta });
+    if (revision.revisada) {
+      showCopyToast("ℹ️ Ya revisado: " + revision.motivo.substring(0,80));
+      return;
+    }
     var d = await proxyFetch({ action:"marcarError", email:currentUser.email, fecha:item.fecha, nota:nota||"" });
     if (d.ok) { showCopyToast("✅ Error reportado."); var idxGlobal = hist.indexOf(item); if (idxGlobal>=0) hist.splice(idxGlobal,1); renderHistorialLista(historialFiltroActual); }
     else { showCopyToast("❌ Error al reportar: "+(d.error||"desconocido")); }
@@ -763,6 +768,11 @@ async function reportarErrorChat(idx) {
   var pregunta = "";
   for (var i=idx-1;i>=0;i--) { if(messages[i].role==="user"){pregunta=messages[i].content;break;} }
   try {
+    var revision = await proxyFetch({ action:"verificarRevision", pregunta:pregunta.substring(0,300) });
+    if (revision.revisada) {
+      showCopyToast("ℹ️ Ya revisado por administración: " + revision.motivo.substring(0,80));
+      return;
+    }
     await proxyFetch({ action:"marcarError", email:currentUser.email, fecha:"", nota:nota||"", pregunta:pregunta.substring(0,500) });
     showCopyToast("✅ Error reportado. Gracias por la corrección.");
   } catch(e) { showCopyToast("❌ Error al reportar: "+e.message); }
@@ -1224,11 +1234,38 @@ async function loadErrores() {
         "<div style='font-size:13px;color:#185FA5;margin-bottom:6px;font-weight:500;'>❓ " + e.pregunta.substring(0,200) + (e.pregunta.length>200?"…":"") + "</div>" +
         "<div style='font-size:12px;color:#555;background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:8px;max-height:120px;overflow-y:auto;'>" + e.respuesta.substring(0,500) + (e.respuesta.length>500?"…":"") + "</div>" +
         (e.docs ? "<div style='font-size:11px;color:#888;margin-top:6px;'>📚 " + e.docs + "</div>" : "") +
+        "<div style='display:flex;gap:8px;margin-top:10px;'>" +
+        "<button class='btn-success' onclick='revisarError(\"" + e.fecha + "\",\"" + e.email + "\",\"CORRECTO\")'>✅ Es correcto</button>" +
+        "<button class='btn-danger' onclick='revisarError(\"" + e.fecha + "\",\"" + e.email + "\",\"CONFIRMADO\")'>❌ Confirmar error</button>" +
+        "</div>" +
         "</div>";
     }).join("");
   } catch(e) {
     status.textContent = "❌ Error: " + e.message;
   }
+}
+
+async function revisarError(fecha, emailUsuario, decision) {
+  var motivo = prompt(
+    decision === "CORRECTO"
+      ? "Explica por qué la respuesta es correcta (quedará registrado):"
+      : "Describe el error confirmado y la acción a tomar:"
+  );
+  if (motivo === null) return;
+  if (!motivo.trim()) { showCopyToast("❌ El motivo es obligatorio."); return; }
+  try {
+    var d = await proxyFetch({
+      action: "revisarError",
+      email: currentUser.email,
+      email_usuario: emailUsuario,
+      fecha: fecha,
+      decision: decision,
+      motivo: motivo
+    });
+    if (d.error) throw new Error(d.error);
+    showCopyToast(decision === "CORRECTO" ? "✅ Marcado como correcto." : "❌ Error confirmado.");
+    loadErrores();
+  } catch(e) { showCopyToast("❌ Error: " + e.message); }
 }
 
 async function guardarConfig() {
