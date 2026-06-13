@@ -481,8 +481,6 @@
             <button class="btn-primary" onclick="guardarConfig()">💾 Guardar configuración</button>
             <div id="configStatus" style="margin-top:8px;"></div>
           </div>
-        </div>
-
         <!-- Tab Errores -->
         <div id="tab-errores" style="display:none;">
           <div class="admin-card">
@@ -493,13 +491,14 @@
           </div>
         </div>
 
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <div class="watermark">
-  Desarrollado por José E. Carballo Ventura<br>
+  Desarrollado por José E. Carballo<br>
   OG RC S/C de La Palma
 </div>
 <div class="footer">Asistente basado en legislación y resoluciones de Registro Civil español · DGRN / DGSJFP</div>
@@ -973,7 +972,7 @@ function showAdminTab(tab) {
   if (tab==="sistema")  initFolderExplorer();
   if (tab==="consumo")  loadConsumoTotal();
   if (tab==="usuarios") loadAdminUsuarios();
-  if (tab==="errores") loadErrores();
+  if (tab==="errores")  loadErrores();
 }
 
 async function initFolderExplorer() { folderStack=[]; await loadFolder(null); }
