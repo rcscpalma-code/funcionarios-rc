@@ -481,8 +481,6 @@
             <button class="btn-primary" onclick="guardarConfig()">💾 Guardar configuración</button>
             <div id="configStatus" style="margin-top:8px;"></div>
           </div>
-        </div>
-
         <!-- Tab Errores -->
         <div id="tab-errores" style="display:none;">
           <div class="admin-card">
@@ -731,7 +729,12 @@ function renderHistorialLista(query) {
     return "<div style='background:#fff;border:1px solid #e0e0e0;border-radius:9px;padding:12px;margin-bottom:8px;'>" +
       "<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;'>" +
       "<div style='font-size:11px;color:#aaa;'>📅 "+h.fecha+"</div>" +
-      "<button class='btn-error' onclick='reportarError("+idx+",event)'>⚠️ Reportar error</button>" +
+      (h.revision === "PENDIENTE"
+        ? "<button class='btn-error' disabled style='opacity:0.5;cursor:default;'>⏳ En revisión</button>"
+        : h.revision === "CORRECTO" || h.revision === "CONFIRMADO"
+          ? "<button class='btn-error' onclick='reportarError("+idx+",event)'>⚠️ Reportar error</button> " +
+            "<button class='btn-error' style='border-color:#185FA5;color:#185FA5;' onclick='verRevision(""+h.nota_reporte+"",""+h.revision+"",""+h.motivo_admin+"")'>📋 Ver revisión</button>"
+          : "<button class='btn-error' onclick='reportarError("+idx+",event)'>⚠️ Reportar error</button>") +
       "</div>" +
       "<div onclick='verHistorialDetalle("+idx+")' style='font-size:13px;color:#1a1a1a;cursor:pointer;'>"+highlight+"</div>" +
       "</div>";
@@ -751,10 +754,7 @@ async function reportarError(idx, event) {
   if (nota === null) return;
   try {
     var revision = await proxyFetch({ action:"verificarRevision", pregunta:item.pregunta });
-    if (revision.revisada) {
-      showCopyToast("ℹ️ Ya revisado: " + revision.motivo.substring(0,80));
-      return;
-    }
+    if (revision.revisada) { showCopyToast("ℹ️ Ya revisado: " + revision.motivo.substring(0,80)); return; }
     var d = await proxyFetch({ action:"marcarError", email:currentUser.email, fecha:item.fecha, nota:nota||"" });
     if (d.ok) { showCopyToast("✅ Error reportado."); var idxGlobal = hist.indexOf(item); if (idxGlobal>=0) hist.splice(idxGlobal,1); renderHistorialLista(historialFiltroActual); }
     else { showCopyToast("❌ Error al reportar: "+(d.error||"desconocido")); }
@@ -771,10 +771,7 @@ async function reportarErrorChat(idx) {
   for (var i=idx-1;i>=0;i--) { if(messages[i].role==="user"){pregunta=messages[i].content;break;} }
   try {
     var revision = await proxyFetch({ action:"verificarRevision", pregunta:pregunta.substring(0,300) });
-    if (revision.revisada) {
-      showCopyToast("ℹ️ Ya revisado por administración: " + revision.motivo.substring(0,80));
-      return;
-    }
+    if (revision.revisada) { showCopyToast("ℹ️ Ya revisado por administración: " + revision.motivo.substring(0,80)); return; }
     await proxyFetch({ action:"marcarError", email:currentUser.email, fecha:"", nota:nota||"", pregunta:pregunta.substring(0,500) });
     showCopyToast("✅ Error reportado. Gracias por la corrección.");
   } catch(e) { showCopyToast("❌ Error al reportar: "+e.message); }
@@ -1237,8 +1234,8 @@ async function loadErrores() {
         "<div style='font-size:12px;color:#555;background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:8px;max-height:120px;overflow-y:auto;'>" + e.respuesta.substring(0,500) + (e.respuesta.length>500?"…":"") + "</div>" +
         (e.docs ? "<div style='font-size:11px;color:#888;margin-top:6px;'>📚 " + e.docs + "</div>" : "") +
         "<div style='display:flex;gap:8px;margin-top:10px;'>" +
-        "<button class='btn-success' onclick='revisarError(\"" + e.fecha + "\",\"" + e.email + "\",\"CORRECTO\")'>✅ Es correcto</button>" +
-        "<button class='btn-danger' onclick='revisarError(\"" + e.fecha + "\",\"" + e.email + "\",\"CONFIRMADO\")'>❌ Confirmar error</button>" +
+        "<button class='btn-success' onclick='revisarError("" + e.fecha + "","" + e.email + "","CORRECTO")'>✅ Es correcto</button>" +
+        "<button class='btn-danger' onclick='revisarError("" + e.fecha + "","" + e.email + "","CONFIRMADO")'>❌ Confirmar error</button>" +
         "</div>" +
         "</div>";
     }).join("");
@@ -1250,8 +1247,8 @@ async function loadErrores() {
 async function revisarError(fecha, emailUsuario, decision) {
   var motivo = prompt(
     decision === "CORRECTO"
-      ? "Explica por qué la respuesta es correcta (quedará registrado):"
-      : "Describe el error confirmado y la acción a tomar:"
+      ? "Explica por qué la respuesta es correcta (quedará registrado para futuros reportes):"
+      : "Indica qué criterio/resolución/ley supera este criterio erróneo:"
   );
   if (motivo === null) return;
   if (!motivo.trim()) { showCopyToast("❌ El motivo es obligatorio."); return; }
@@ -1265,9 +1262,29 @@ async function revisarError(fecha, emailUsuario, decision) {
       motivo: motivo
     });
     if (d.error) throw new Error(d.error);
-    showCopyToast(decision === "CORRECTO" ? "✅ Marcado como correcto." : "❌ Error confirmado.");
+    showCopyToast(decision === "CORRECTO" ? "✅ Marcado como correcto." : "❌ Error confirmado. Caché invalidada.");
     loadErrores();
   } catch(e) { showCopyToast("❌ Error: " + e.message); }
+}
+
+function verRevision(nota, decision, motivo) {
+  var color = decision === "CORRECTO" ? "#2e7d32" : "#c62828";
+  var icono = decision === "CORRECTO" ? "✅" : "🚫";
+  var html = "<div style='padding:16px;'>" +
+    "<div style='font-size:13px;color:#555;margin-bottom:8px;'><strong>Nota del usuario:</strong> " + (nota||"—") + "</div>" +
+    "<div style='font-size:13px;margin-bottom:8px;'><strong>Decisión:</strong> <span style='color:" + color + ";font-weight:600;'>" + icono + " " + decision + "</span></div>" +
+    "<div style='font-size:13px;color:#555;'><strong>Motivo de la administración:</strong> " + (motivo||"—") + "</div>" +
+    "</div>";
+  var modal = document.createElement("div");
+  modal.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;";
+  modal.innerHTML = "<div style='background:#fff;border-radius:12px;padding:0;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.2);'>" +
+    "<div style='padding:16px 20px;border-bottom:1px solid #e0e0e0;font-weight:600;font-size:15px;'>📋 Historial de revisión</div>" +
+    html +
+    "<div style='padding:12px 20px;border-top:1px solid #e0e0e0;text-align:right;'>" +
+    "<button onclick='this.closest(\"[style*=position:fixed]\").remove()' style='padding:6px 18px;border-radius:7px;border:1px solid #ddd;background:#f8f9fa;cursor:pointer;font-size:13px;'>Cerrar</button>" +
+    "</div></div>";
+  document.body.appendChild(modal);
+  modal.addEventListener("click", function(ev){ if(ev.target===modal) modal.remove(); });
 }
 
 async function guardarConfig() {
