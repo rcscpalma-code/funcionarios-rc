@@ -1270,23 +1270,37 @@ async function revisarError(fecha, emailUsuario, decision) {
 function verRevision(nota, decision, motivo) {
   var color = decision === "CORRECTO" ? "#2e7d32" : "#c62828";
   var icono = decision === "CORRECTO" ? "✅" : "🚫";
-  var html = "<div style='padding:16px;'>" +
-    "<div style='font-size:13px;color:#555;margin-bottom:8px;'><strong>Nota del usuario:</strong> " + (nota||"—") + "</div>" +
-    "<div style='font-size:13px;margin-bottom:8px;'><strong>Decisión:</strong> <span style='color:" + color + ";font-weight:600;'>" + icono + " " + decision + "</span></div>" +
-    "<div style='font-size:13px;color:#555;'><strong>Motivo de la administración:</strong> " + (motivo||"—") + "</div>" +
-    "</div>";
-  var modal = document.createElement("div");
-  modal.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;";
-  modal.innerHTML = "<div style='background:#fff;border-radius:12px;padding:0;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.2);'>" +
-    "<div style='padding:16px 20px;border-bottom:1px solid #e0e0e0;font-weight:600;font-size:15px;'>📋 Historial de revisión</div>" +
-    html +
-    "<div style='padding:12px 20px;border-top:1px solid #e0e0e0;text-align:right;'>" +
-    "<button onclick='this.closest(\"[style*=position:fixed]\").remove()' style='padding:6px 18px;border-radius:7px;border:1px solid #ddd;background:#f8f9fa;cursor:pointer;font-size:13px;'>Cerrar</button>" +
-    "</div></div>";
-  document.body.appendChild(modal);
-  modal.addEventListener("click", function(ev){ if(ev.target===modal) modal.remove(); });
+  var overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;";
+  var box = document.createElement("div");
+  box.style.cssText = "background:#fff;border-radius:12px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.2);overflow:hidden;";
+  var header = document.createElement("div");
+  header.style.cssText = "padding:16px 20px;border-bottom:1px solid #e0e0e0;font-weight:600;font-size:15px;";
+  header.textContent = "📋 Historial de revisión";
+  var body = document.createElement("div");
+  body.style.cssText = "padding:16px;";
+  var p1 = document.createElement("div");
+  p1.style.cssText = "font-size:13px;color:#555;margin-bottom:8px;";
+  p1.innerHTML = "<strong>Nota del usuario:</strong> " + (nota||"—");
+  var p2 = document.createElement("div");
+  p2.style.cssText = "font-size:13px;margin-bottom:8px;";
+  p2.innerHTML = "<strong>Decisión:</strong> <span style='color:" + color + ";font-weight:600;'>" + icono + " " + decision + "</span>";
+  var p3 = document.createElement("div");
+  p3.style.cssText = "font-size:13px;color:#555;";
+  p3.innerHTML = "<strong>Motivo de la administración:</strong> " + (motivo||"—");
+  body.appendChild(p1); body.appendChild(p2); body.appendChild(p3);
+  var footer = document.createElement("div");
+  footer.style.cssText = "padding:12px 20px;border-top:1px solid #e0e0e0;text-align:right;";
+  var btnCerrar = document.createElement("button");
+  btnCerrar.textContent = "Cerrar";
+  btnCerrar.style.cssText = "padding:6px 18px;border-radius:7px;border:1px solid #ddd;background:#f8f9fa;cursor:pointer;font-size:13px;";
+  btnCerrar.onclick = function(){ overlay.remove(); };
+  footer.appendChild(btnCerrar);
+  box.appendChild(header); box.appendChild(body); box.appendChild(footer);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", function(ev){ if(ev.target===overlay) overlay.remove(); });
 }
-
 async function guardarConfig() {
   var status=document.getElementById("configStatus"); status.innerHTML="<div class='status-msg status-info'>⏳ Guardando…</div>";
   var cupo=document.getElementById("cfgCupoMax").value, mensajes=document.getElementById("cfgMensajesCortesia").value, margen=document.getElementById("cfgMargenFactor").value;
