@@ -1214,8 +1214,10 @@ async function cargarMiCuenta() {
 }
 
 async function loadErrores() {
+  console.log("loadErrores() iniciada");  // ← AQUÍ
   var status = document.getElementById("erroresStatus");
   var lista   = document.getElementById("erroresLista");
+  console.log("status:", status, "lista:", lista);  // ← AQUÍ
   status.textContent = "⏳ Cargando…";
   lista.innerHTML = "";
   try {
