@@ -297,9 +297,11 @@
     <div class="mode-bar">
       <button class="mode-btn active" id="btn-chat" onclick="setMode('chat')">💬 Chat</button>
       <button class="mode-btn" id="btn-drive" onclick="setMode('drive')">📁 Documentos</button>
-      <button class="mode-btn" id="btn-historial" onclick="setMode('historial')">📋 Historial</button>
+      <<button class="mode-btn" id="btn-historial" onclick="setMode('historial')">📋 Historial</button>
       <button class="mode-btn" id="btn-micuenta" onclick="setMode('micuenta')" style="display:none;">👤 Mi cuenta</button>
-      <button class="mode-btn" id="btn-admin" onclick="setMode('admin')" style="display:none;margin-left:auto;background:#fff3e0;border-color:#FF9800;color:#E65100;">⚙️ Admin</button>
+      <button class="mode-btn" onclick="window.open('manual-ayuda-usuario.html','_blank')" style="margin-left:auto;border-color:#4CAF50;color:#2e7d32;background:#e8f5e9;">📖 Ayuda</button>
+      <button class="mode-btn" id="btn-admin-manual" onclick="window.open('https://drive.google.com/file/d/1aX_fgYVfTv3BlVNujvQ_1jjsmrZWCF6L/view','_blank')" style="display:none;border-color:#FF9800;color:#E65100;background:#fff3e0;">📖 Manual</button>
+      <button class="mode-btn" id="btn-admin" onclick="setMode('admin')" style="display:none;background:#fff3e0;border-color:#FF9800;color:#E65100;">⚙️ Admin</button>
     </div>
     <div id="context-bar" class="context-bar" style="display:none"></div>
 
@@ -561,6 +563,7 @@ async function showApp() {
   document.getElementById("userName").textContent = currentUser.name;
   if (currentUser.email === ADMIN_EMAIL) {
     document.getElementById("btn-admin").style.display = "block";
+    document.getElementById("btn-admin-manual").style.display = "block";
     mostrarMainApp();
     return;
   }
