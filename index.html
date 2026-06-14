@@ -339,6 +339,7 @@
     <!-- Drive -->
     <div id="panel-drive" class="panel" style="display:none;padding:16px;">
       <div style="font-size:12px;color:#666;margin-bottom:12px;">Selecciona documentos para incluirlos como contexto fijo. Si no seleccionas ninguno, la búsqueda es automática.</div>
+      <input type="text" id="driveSearch" placeholder="🔍 Buscar documento por nombre o tema…" oninput="filtrarDocumentos()" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;margin-bottom:12px;"/>
       <div id="driveContent"><div style="color:#888;font-size:14px;">⏳ Cargando archivos…</div></div>
     </div>
 
@@ -831,21 +832,32 @@ async function loadFiles() {
 }
 
 function renderFiles() {
+  var query = document.getElementById("driveSearch") ? document.getElementById("driveSearch").value.trim().toLowerCase() : "";
+  var filtrados = files;
+  if (query) {
+    filtrados = files.filter(function(f) {
+      return f.name.toLowerCase().includes(query);
+    });
+  }
   var sel = selectedDocs.length;
-  var html = "<div style='font-size:12px;color:#888;margin-bottom:12px;'>"+files.length+" archivos · "+(sel?"<strong style='color:#185FA5'>"+sel+" seleccionados</strong>":"ninguno (modo automático)")+"</div>";
+  var html = "<div style='font-size:12px;color:#888;margin-bottom:12px;'>"+filtrados.length+" de "+files.length+" archivos"+(query?" · resultados para «"+query+"»":"")+" · "+(sel?"<strong style='color:#185FA5'>"+sel+" seleccionados</strong>":"ninguno (modo automático)")+"</div>";
   if (sel) html += "<button onclick='clearSelection()' style='margin-bottom:12px;padding:4px 12px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer;font-size:12px;'>✕ Limpiar selección</button><br>";
-  html += files.map(function(f){
+  if (query && !filtrados.length) { html += "<div style='color:#888;font-size:13px;padding:16px 0;'>No hay documentos que coincidan con «"+query+"».</div>"; }
+  html += filtrados.map(function(f){
     var icon = f.mimeType==="application/pdf"?"📄":f.mimeType&&f.mimeType.includes("document")?"📝":"📎";
     var checked = selectedDocs.includes(f.id);
     var shortName = f.name.split(" / ").pop();
     var folder = f.name.includes(" / ") ? f.name.split(" / ").slice(0,-1).join(" / ") : "";
     var driveUrl = "https://drive.google.com/file/d/"+f.id+"/view";
-    return "<div class='file-item"+(checked?" selected":"")+"'><span style='font-size:18px;flex-shrink:0;'>"+icon+"</span><div style='flex:1;min-width:0;' onclick='toggleDoc(\""+f.id+"\")' style='cursor:pointer;'><a href='"+driveUrl+"' target='_blank' onclick='event.stopPropagation()' style='color:#185FA5;text-decoration:none;font-size:13px;font-weight:500;'>"+shortName+"</a>"+(folder?"<div class='file-type'>"+folder+"</div>":"")+"</div><div class='checkbox"+(checked?" checked":"")+"' onclick='toggleDoc(\""+f.id+"\")'>"+(checked?"✓":"")+"</div></div>";
+    var highlight = shortName;
+    if (query) { try { var re = new RegExp("("+query.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi"); highlight = shortName.replace(re,"<mark style='background:#fff3cd;'>$1</mark>"); } catch(e){} }
+    return "<div class='file-item"+(checked?" selected":"")+"'><span style='font-size:18px;flex-shrink:0;'>"+icon+"</span><div style='flex:1;min-width:0;' onclick='toggleDoc(\""+f.id+"\")' style='cursor:pointer;'><a href='"+driveUrl+"' target='_blank' onclick='event.stopPropagation()' style='color:#185FA5;text-decoration:none;font-size:13px;font-weight:500;'>"+highlight+"</a>"+(folder?"<div class='file-type'>"+folder+"</div>":"")+"</div><div class='checkbox"+(checked?" checked":"")+"' onclick='toggleDoc(\""+f.id+"\")'>"+(checked?"✓":"")+"</div></div>";
   }).join("");
   document.getElementById("driveContent").innerHTML = html;
   updateContextBar();
 }
 
+function filtrarDocumentos() { renderFiles(); }
 function toggleDoc(id) { selectedDocs=selectedDocs.includes(id)?selectedDocs.filter(function(d){return d!==id;}):[...selectedDocs,id]; renderFiles(); updateContextBar(); }
 function clearSelection() { selectedDocs=[]; renderFiles(); updateContextBar(); }
 
