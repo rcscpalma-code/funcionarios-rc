@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Guía de Usuario — Funcionarios RC</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8f9fa; color: #1a1a1a; line-height: 1.7; }
+    .toolbar { position: sticky; top: 0; z-index: 100; background: #185FA5; color: #fff; padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .toolbar h1 { font-size: 16px; font-weight: 600; }
+    .toolbar-btns { display: flex; gap: 8px; }
+    .toolbar-btn { padding: 6px 16px; border-radius: 6px; border: 1.5px solid rgba(255,255,255,0.5); background: transparent; color: #fff; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; }
+    .toolbar-btn:hover { background: rgba(255,255,255,0.15); border-color: #fff; }
+    .container { max-width: 780px; margin: 0 auto; padding: 32px 24px 80px; }
+    .portada { text-align: center; padding: 48px 0 40px; border-bottom: 2px solid #185FA5; margin-bottom: 40px; }
+    .portada svg { margin-bottom: 16px; }
+    .portada h1 { font-size: 28px; color: #185FA5; margin-bottom: 4px; }
+    .portada p { font-size: 14px; color: #888; }
+    .toc { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 24px 28px; margin-bottom: 40px; }
+    .toc h2 { font-size: 15px; color: #185FA5; margin-bottom: 12px; }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin-bottom: 6px; }
+    .toc a { color: #185FA5; text-decoration: none; font-size: 14px; }
+    .toc a:hover { text-decoration: underline; }
+    h2 { font-size: 20px; color: #185FA5; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 2px solid #E6F1FB; }
+    h3 { font-size: 16px; color: #333; margin: 24px 0 10px; }
+    p { margin-bottom: 14px; font-size: 14px; }
+    .nota { background: #E6F1FB; border-left: 4px solid #185FA5; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; font-size: 13px; color: #185FA5; }
+    .aviso { background: #fff8e1; border-left: 4px solid #f57c00; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; font-size: 13px; color: #e65100; }
+    .danger { background: #ffebee; border-left: 4px solid #c62828; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; font-size: 13px; color: #c62828; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+    th, td { border: 1px solid #e0e0e0; padding: 8px 12px; text-align: left; }
+    th { background: #f0f4f8; color: #185FA5; font-weight: 600; }
+    ul { padding-left: 20px; margin-bottom: 14px; }
+    li { margin-bottom: 6px; font-size: 14px; }
+    .paso { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+    .paso-num { background: #185FA5; color: #fff; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+    .paso-text { font-size: 14px; flex: 1; }
+    .footer-doc { text-align: center; margin-top: 60px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 11px; color: #aaa; }
+    @media print {
+      .toolbar { display: none; }
+      body { background: #fff; }
+      .container { max-width: 100%; padding: 20px; }
+      h2 { break-before: auto; }
+      .portada { padding: 24px 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>📖 Guía de Usuario — Funcionarios RC</h1>
+  <div class="toolbar-btns">
+    <button class="toolbar-btn" onclick="window.print()">🖨️ Imprimir</button>
+    <button class="toolbar-btn" onclick="window.close()">✕ Cerrar</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="portada">
+    <svg viewBox="0 0 120 100" width="72" height="60" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="60" cy="22" r="14" fill="#2196F3"/>
+      <path d="M38 75 Q38 50 60 50 Q82 50 82 75 L82 90 L38 90 Z" fill="#2196F3"/>
+      <circle cx="28" cy="30" r="11" fill="#F44336"/>
+      <path d="M8 85 Q8 62 28 62 Q38 62 44 70 L38 75 Q34 68 28 68 Q14 68 14 85 Z" fill="#F44336"/>
+      <circle cx="92" cy="30" r="11" fill="#4CAF50"/>
+      <path d="M112 85 Q112 62 92 62 Q82 62 76 70 L82 75 Q86 68 92 68 Q106 68 106 85 Z" fill="#4CAF50"/>
+    </svg>
+    <h1>Funcionarios RC</h1>
+    <p>Guía de usuario · Versión 2.0 · Junio 2026</p>
+  </div>
+
+  <!-- ÍNDICE -->
+  <div class="toc">
+    <h2>Índice</h2>
+    <ol>
+      <li><a href="#s1">¿Qué es Funcionarios RC?</a></li>
+      <li><a href="#s2">Cómo acceder a la aplicación</a></li>
+      <li><a href="#s3">La pantalla principal</a></li>
+      <li><a href="#s4">Cómo hacer una consulta</a></li>
+      <li><a href="#s5">Los documentos de referencia</a></li>
+      <li><a href="#s6">El historial de consultas</a></li>
+      <li><a href="#s7">Reportar errores en las respuestas</a></li>
+      <li><a href="#s8">Mi cuenta</a></li>
+      <li><a href="#s9">Preguntas frecuentes</a></li>
+      <li><a href="#s10">Contacto y soporte</a></li>
+    </ol>
+  </div>
+
+  <!-- 1. QUÉ ES -->
+  <h2 id="s1">1. ¿Qué es Funcionarios RC?</h2>
+  <p>Funcionarios RC es un asistente jurídico basado en inteligencia artificial, diseñado específicamente para funcionarios del Registro Civil español. Utiliza la tecnología de Claude (Anthropic) para responder consultas jurídicas con precisión, apoyándose en una base documental de más de 45.000 resoluciones indexadas de la DGRN y la DGSJFP.</p>
+
+  <h3>Materias que cubre</h3>
+  <ul>
+    <li>Nacionalidad española (adquisición, conservación, pérdida, doble nacionalidad)</li>
+    <li>Nombre y apellidos (cambio, imposición, orden)</li>
+    <li>Matrimonio (celebración, inscripción, nulidad, divorcio)</li>
+    <li>Filiación (reconocimiento, adopción, paternidad)</li>
+    <li>Nacimientos e inscripciones fuera de plazo</li>
+    <li>Defunciones y expedientes de declaración de fallecimiento</li>
+    <li>Tutela, curatela y capacidad</li>
+    <li>Fe pública registral y procedimientos del Registro Civil</li>
+    <li>DICIREG y Ley 20/2011</li>
+  </ul>
+
+  <div class="nota">
+    <strong>Importante:</strong> Las respuestas del asistente son orientativas y de apoyo profesional. Nunca sustituyen el criterio jurídico del funcionario responsable.
+  </div>
+
+  <!-- 2. CÓMO ACCEDER -->
+  <h2 id="s2">2. Cómo acceder a la aplicación</h2>
+  <p>La aplicación se encuentra en: <strong>https://rcscpalma-code.github.io/funcionarios-rc/</strong></p>
+
+  <h3>Pasos para acceder</h3>
+  <div class="paso"><div class="paso-num">1</div><div class="paso-text">Abre la dirección en tu navegador (Chrome, Firefox, Edge o Safari).</div></div>
+  <div class="paso"><div class="paso-num">2</div><div class="paso-text">Marca la casilla <strong>«He leído y acepto la política de privacidad»</strong>. Puedes leer la política completa haciendo clic en el enlace.</div></div>
+  <div class="paso"><div class="paso-num">3</div><div class="paso-text">Haz clic en <strong>«Sign in with Google»</strong> e identifícate con tu cuenta de Google.</div></div>
+  <div class="paso"><div class="paso-num">4</div><div class="paso-text">Si hay plaza disponible, accederás directamente a la aplicación. Si el cupo está lleno, quedarás en lista de espera hasta que se libere una plaza.</div></div>
+
+  <h3>Tipos de cuenta</h3>
+  <table>
+    <tr><th>Categoría</th><th>Acceso</th><th>Descripción</th></tr>
+    <tr><td>🎁 Cortesía</td><td>3 mensajes gratuitos</td><td>Se asigna automáticamente al registrarte. Permite probar la aplicación.</td></tr>
+    <tr><td>💚 Colaborador</td><td>Según saldo disponible</td><td>Acceso continuado mediante aportación voluntaria. El saldo se descuenta según el consumo real de cada consulta.</td></tr>
+    <tr><td>⭐ VIP</td><td>Ilimitado</td><td>Asignado manualmente por el administrador.</td></tr>
+  </table>
+
+  <h3>Cómo pasar a Colaborador</h3>
+  <p>Cuando agotas los mensajes de cortesía, la aplicación te muestra las instrucciones para realizar una aportación voluntaria por transferencia bancaria. Los importes sugeridos son 5 €, 10 € o 15 €. Tras confirmar el pago, el administrador activará tu acceso como colaborador.</p>
+
+  <!-- 3. PANTALLA PRINCIPAL -->
+  <h2 id="s3">3. La pantalla principal</h2>
+  <p>La pantalla principal tiene estos elementos:</p>
+
+  <h3>Cabecera</h3>
+  <p>En la parte superior verás tu nombre, foto de perfil, un indicador de tu saldo o mensajes restantes, el número de consultas realizadas, y el botón «Salir».</p>
+
+  <h3>Barra de navegación</h3>
+  <p>Debajo de la cabecera hay cuatro pestañas:</p>
+  <ul>
+    <li><strong>💬 Chat</strong> — Donde realizas las consultas al asistente.</li>
+    <li><strong>📁 Documentos</strong> — Para seleccionar documentos concretos como contexto de tu consulta.</li>
+    <li><strong>📋 Historial</strong> — Registro de todas tus consultas anteriores con búsqueda.</li>
+    <li><strong>👤 Mi cuenta</strong> — Tus datos de acceso, uso acumulado y opción de baja.</li>
+  </ul>
+
+  <h3>Barra de contexto</h3>
+  <p>Justo debajo de la navegación, una barra azul indica el modo de búsqueda actual:</p>
+  <ul>
+    <li><strong>🔍 Modo automático</strong> — El asistente selecciona automáticamente los documentos más relevantes para cada consulta (por defecto).</li>
+    <li><strong>📌 Contexto fijo</strong> — Aparece cuando has seleccionado documentos manualmente en la pestaña Documentos.</li>
+  </ul>
+
+  <!-- 4. CÓMO CONSULTAR -->
+  <h2 id="s4">4. Cómo hacer una consulta</h2>
+  <div class="paso"><div class="paso-num">1</div><div class="paso-text">Asegúrate de estar en la pestaña <strong>💬 Chat</strong>.</div></div>
+  <div class="paso"><div class="paso-num">2</div><div class="paso-text">Escribe tu consulta en el cuadro de texto inferior. Sé lo más específico posible: incluye los hechos del caso, la normativa que te genera duda y qué necesitas saber.</div></div>
+  <div class="paso"><div class="paso-num">3</div><div class="paso-text">Pulsa <strong>Enter</strong> o el botón <strong>➤</strong> para enviar. Mientras se genera la respuesta, verás tres puntos animados.</div></div>
+  <div class="paso"><div class="paso-num">4</div><div class="paso-text">La respuesta aparecerá con los documentos de referencia utilizados al pie (con enlace directo a Google Drive).</div></div>
+
+  <h3>Ejemplos de buenas consultas</h3>
+  <ul>
+    <li>«Un ciudadano colombiano con residencia legal en España quiere adquirir la nacionalidad española. ¿Cuáles son los requisitos y el procedimiento aplicable bajo la Ley 20/2011?»</li>
+    <li>«Nos ha llegado un expediente de inscripción de nacimiento fuera de plazo de un menor nacido hace 3 años. ¿Qué documentación es necesaria y quién es competente tras DICIREG?»</li>
+    <li>«Una pareja del mismo sexo casada en el extranjero solicita la inscripción de su matrimonio. ¿Es inscribible directamente o requiere expediente?»</li>
+  </ul>
+
+  <h3>Botones de acción en las respuestas</h3>
+  <p>A la derecha de cada respuesta del asistente hay dos botones:</p>
+  <ul>
+    <li><strong>📋</strong> — Copia la respuesta al portapapeles.</li>
+    <li><strong>⚠️</strong> — Reporta un error en la respuesta (ver sección 7).</li>
+  </ul>
+
+  <h3>Botones superiores del chat</h3>
+  <ul>
+    <li><strong>📋 Copiar todo</strong> — Copia toda la conversación al portapapeles en formato texto.</li>
+    <li><strong>🖨️ Imprimir</strong> — Abre una ventana de impresión con la conversación formateada.</li>
+  </ul>
+
+  <h3>Cancelar una consulta</h3>
+  <p>Si el asistente está tardando demasiado, puedes pulsar el botón <strong>✕</strong> rojo que aparece junto al botón de envío. La consulta se cancelará y podrás modificar o reenviar tu pregunta.</p>
+
+  <!-- 5. DOCUMENTOS -->
+  <h2 id="s5">5. Los documentos de referencia</h2>
+  <p>La pestaña <strong>📁 Documentos</strong> muestra todos los archivos disponibles en la base documental (resoluciones, instrucciones, circulares, convenios, etc.).</p>
+
+  <h3>Modo automático (recomendado)</h3>
+  <p>Si no seleccionas ningún documento, el asistente utiliza un sistema de búsqueda semántica que selecciona automáticamente los documentos más relevantes para cada consulta. Este es el modo más eficaz para la mayoría de preguntas.</p>
+
+  <h3>Selección manual</h3>
+  <p>Si quieres que el asistente se centre en documentos específicos, márcalos en la lista haciendo clic en el checkbox. Aparecerán indicados en la barra de contexto. Para volver al modo automático, pulsa «✕ Limpiar selección».</p>
+
+  <p>Los nombres de los documentos son enlaces directos a Google Drive. Haz clic en el nombre para abrir el documento original en una nueva pestaña.</p>
+
+  <!-- 6. HISTORIAL -->
+  <h2 id="s6">6. El historial de consultas</h2>
+  <p>La pestaña <strong>📋 Historial</strong> guarda todas tus consultas y respuestas anteriores.</p>
+
+  <h3>Buscar en el historial</h3>
+  <p>En la parte superior hay un campo de búsqueda. Escribe cualquier término y el historial se filtrará en tiempo real, resaltando las coincidencias encontradas.</p>
+
+  <h3>Ver el detalle de una consulta</h3>
+  <p>Haz clic en cualquier consulta para ver la pregunta completa, la respuesta del asistente y los documentos que se utilizaron. Pulsa «← Volver» para regresar a la lista.</p>
+
+  <h3>Reportar errores desde el historial</h3>
+  <p>Cada consulta en la lista tiene un botón <strong>«⚠️ Reportar error»</strong> a la derecha de la fecha. Si detectas que una respuesta es incorrecta, puedes reportarla directamente desde aquí (ver sección 7).</p>
+
+  <h3>Estado de las revisiones</h3>
+  <p>Después de reportar un error, verás el estado de la revisión:</p>
+  <ul>
+    <li><strong>⏳ En revisión</strong> — El administrador aún no ha revisado tu reporte.</li>
+    <li><strong>📋 Ver revisión</strong> — Ya ha sido revisado. Haz clic para ver la decisión del administrador y su explicación.</li>
+  </ul>
+
+  <!-- 7. REPORTAR ERRORES -->
+  <h2 id="s7">7. Reportar errores en las respuestas</h2>
+  <p>Si detectas que una respuesta del asistente contiene un error jurídico, puedes reportarlo para que sea revisado por el administrador. Esto mejora la calidad del asistente para todos los usuarios.</p>
+
+  <h3>Cómo reportar un error</h3>
+  <p>Puedes reportar desde dos sitios:</p>
+  <ul>
+    <li><strong>Desde el chat:</strong> Pulsa el botón <strong>⚠️</strong> a la derecha de la respuesta.</li>
+    <li><strong>Desde el historial:</strong> Pulsa <strong>«⚠️ Reportar error»</strong> en cualquier consulta.</li>
+  </ul>
+
+  <div class="paso"><div class="paso-num">1</div><div class="paso-text">Confirma que deseas reportar el error.</div></div>
+  <div class="paso"><div class="paso-num">2</div><div class="paso-text">Describe brevemente el error (por ejemplo: «La ley citada está derogada» o «El criterio aplicado es de la LRC 1957, no de la Ley 20/2011»).</div></div>
+  <div class="paso"><div class="paso-num">3</div><div class="paso-text">El reporte se envía al administrador, que lo revisará y tomará una de estas decisiones:</div></div>
+
+  <ul>
+    <li><strong>✅ Es correcto:</strong> El administrador considera que la respuesta es correcta y lo justifica.</li>
+    <li><strong>❌ Confirmar error:</strong> El administrador confirma el error. La respuesta incorrecta se invalida en la caché del sistema para que no se reutilice, y el criterio erróneo se registra como superado.</li>
+  </ul>
+
+  <div class="nota">
+    <strong>Tu aportación importa:</strong> Cada error reportado mejora la calidad de las respuestas futuras para todos los usuarios.
+  </div>
+
+  <!-- 8. MI CUENTA -->
+  <h2 id="s8">8. Mi cuenta</h2>
+  <p>La pestaña <strong>👤 Mi cuenta</strong> muestra tu información personal y de uso:</p>
+
+  <h3>Datos de acceso</h3>
+  <ul>
+    <li>Nombre y email vinculados a tu cuenta de Google.</li>
+    <li>Tu categoría actual (Cortesía, Colaborador o VIP).</li>
+    <li>Mensajes restantes (cortesía) o saldo disponible (colaborador).</li>
+  </ul>
+
+  <h3>Mi uso</h3>
+  <ul>
+    <li>Número total de consultas realizadas.</li>
+    <li>Coste acumulado de tus consultas (informativo).</li>
+  </ul>
+
+  <h3>Eliminar cuenta</h3>
+  <p>En la parte inferior puedes solicitar la baja voluntaria. Esta acción es <strong>irreversible</strong>: se anonimizarán todos tus datos personales conforme al RGPD (nombre, email, consentimiento) y tu cuenta dejará de ser accesible.</p>
+
+  <div class="danger">
+    <strong>Atención:</strong> La eliminación de cuenta es permanente. Los datos anonimizados no pueden recuperarse.
+  </div>
+
+  <!-- 9. FAQ -->
+  <h2 id="s9">9. Preguntas frecuentes</h2>
+
+  <h3>¿Es gratuito?</h3>
+  <p>Dispones de 3 consultas gratuitas de cortesía. Después, puedes continuar realizando una aportación voluntaria que se destina al sostenimiento de los costes de la inteligencia artificial.</p>
+
+  <h3>¿Mis consultas son privadas?</h3>
+  <p>Sí. Cada usuario solo ve sus propias consultas. El administrador tiene acceso al consumo global y a las respuestas reportadas como erróneas, pero no accede al historial completo de cada usuario.</p>
+
+  <h3>¿Puedo usar la aplicación desde el móvil?</h3>
+  <p>Sí. La aplicación es responsive y se adapta a cualquier tamaño de pantalla.</p>
+
+  <h3>¿Qué hago si me dice que el cupo está lleno?</h3>
+  <p>Quedarás automáticamente en lista de espera. Cuando se libere una plaza (por baja de otro usuario), se te activará automáticamente por orden de registro.</p>
+
+  <h3>¿Qué fiabilidad tienen las respuestas?</h3>
+  <p>El asistente se apoya en una base de más de 45.000 resoluciones indexadas y el sistema prompt está configurado con la normativa vigente. No obstante, como cualquier herramienta de apoyo, las respuestas deben ser contrastadas por el funcionario. Si detectas un error, repórtalo para que sea corregido.</p>
+
+  <h3>¿Puedo exportar una conversación?</h3>
+  <p>Sí. Usa los botones «📋 Copiar todo» para copiar al portapapeles o «🖨️ Imprimir» para generar un documento imprimible con toda la conversación.</p>
+
+  <!-- 10. CONTACTO -->
+  <h2 id="s10">10. Contacto y soporte</h2>
+  <p>Para cualquier consulta, incidencia técnica o solicitud de activación de cuenta, contacta con el administrador:</p>
+  <p style="margin:16px 0;padding:16px 20px;background:#f0f4f8;border-radius:8px;border:1px solid #e0e0e0;">
+    📧 <strong>fororegistrocivil@gmail.com</strong><br>
+    <span style="font-size:12px;color:#888;">Respuesta en un plazo de 24-48 horas en días hábiles.<br>Indica en el asunto: <strong>[Funcionarios RC]</strong> y describe brevemente tu consulta.</span>
+  </p>
+
+  <div class="footer-doc">
+    Desarrollado por José Eugenio Carballo · OG RC S/C de La Palma<br>
+    Última actualización: junio 2026
+  </div>
+
+</div>
+</body>
+</html>
