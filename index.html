@@ -669,8 +669,18 @@ function logout() {
 }
 
 async function proxyFetch(params, signal) {
-  var qs = new URLSearchParams(params).toString();
-  var r = await fetch(BRIDGE_URL + "?" + qs, signal ? { signal } : {});
+  // Si hay base64 (archivo grande), usa POST; si no, GET
+  if (params.base64) {
+    var r = await fetch(BRIDGE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+      signal: signal
+    });
+  } else {
+    var qs = new URLSearchParams(params).toString();
+    var r = await fetch(BRIDGE_URL + "?" + qs, signal ? { signal } : {});
+  }
   return r.json();
 }
 
