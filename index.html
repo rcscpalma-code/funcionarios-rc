@@ -238,7 +238,10 @@
       <img id="userAvatar" src="" alt=""/>
       <span id="userName"></span>
       <span id="saldoBadge" class="saldo-badge" style="display:none"></span>
-      <span id="myUsageBadge" class="my-usage" style="display:none"></span>
+      <div id="usageBadgeWrap" style="display:none;flex-direction:column;align-items:flex-end;line-height:1.35;gap:2px;">
+        <span id="lastCostBadge" style="font-size:10px;color:#999;"></span>
+        <span id="myUsageBadge" class="my-usage"></span>
+      </div>
       <button class="logout-btn" onclick="logout()">Salir</button>
     </div>
   </div>
@@ -308,6 +311,7 @@
     <!-- Chat -->
     <div id="panel-chat" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
       <div style="display:flex;justify-content:flex-start;gap:6px;padding:6px 12px;background:#f8f9fa;border-bottom:0.5px solid #e0e0e0;">
+        <button class="chat-btn" onclick="nuevaConversacion()" style="border-color:#c62828;color:#c62828;background:#fff0f0;">🔄 Nueva conversación</button>
         <button class="chat-btn" onclick="copyAll()">📋 Copiar todo</button>
         <button class="chat-btn" onclick="printChat()">🖨️ Imprimir</button>
       </div>
@@ -923,6 +927,16 @@ function renderMessages() {
   el.scrollTop = el.scrollHeight;
 }
 
+function nuevaConversacion() {
+  if (loading) return;
+  if (messages.length > 1 && !confirm("¿Empezar una nueva conversación? Se borrará el chat actual (tu historial guardado no se ve afectado).")) return;
+  var saludo = currentUser ? "Hola, "+currentUser.name.split(" ")[0]+". ¿En qué puedo ayudarte ahora?" : "Hola. ¿En qué puedo ayudarte ahora?";
+  messages = [{ role:"assistant", content:saludo }];
+  renderMessages();
+  var input = document.getElementById("chatInput");
+  if (input) { input.value = ""; input.focus(); }
+}
+
 async function callBridge(msgs, signal) {
   var cleanMsgs = msgs.map(function(m){ return { role:m.role, content:m.content }; });
   var d = await proxyFetch({ action:"chat", messages:JSON.stringify(cleanMsgs), docIds:JSON.stringify(selectedDocs), email:currentUser?currentUser.email:"anónimo", nombre:currentUser?currentUser.name:"Usuario" }, signal);
@@ -960,6 +974,9 @@ async function sendMessage() {
     if (result) {
       messages.push({ role:"assistant", content:result.reply, docsUsados:result.docsUsados });
       guardarEnHistorial(text, result.reply, result.docsUsados);
+      if (result.coste_consulta !== undefined) {
+        actualizarCosteUltimaConsulta(result.coste_consulta);
+      }
       if (currentUser && currentUser.email !== ADMIN_EMAIL && result.usage_tokens) {
         registrarConsumoUsuario(result.usage_tokens.input || 0, result.usage_tokens.output || 0);
       }
@@ -991,13 +1008,20 @@ async function registrarConsumoUsuario(inputTokens, outputTokens) {
 function cancelarConsulta() { if (abortController) abortController.abort(); }
 function handleChatKey(e) { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} }
 
+function actualizarCosteUltimaConsulta(coste) {
+  var el = document.getElementById("lastCostBadge");
+  if (!el) return;
+  var num = parseFloat(coste);
+  el.textContent = "Última: " + (isNaN(num) ? coste : num.toFixed(4)) + "€";
+}
+
 async function loadMiConsumo() {
   if (!currentUser) return;
   try {
-    var d = await proxyFetch({ action:"miConsumo", email:currentUser.email });
+    var d = await proxyFetch({ action: "miConsumo", email: currentUser.email });
     if (d.error) return;
+    document.getElementById("usageBadgeWrap").style.display = "flex";
     var badge = document.getElementById("myUsageBadge");
-    badge.style.display = "inline";
     badge.textContent = d.consultas+" consulta"+(d.consultas!==1?"s":"")+" · "+d.coste+"€";
   } catch(e) {}
 }
