@@ -815,6 +815,22 @@ function copiarHistorialDetalle(idx) {
   doCopy(texto);
 }
 
+function printHistorialDetalle(idx) {
+  var hist = historialCache;
+  var filtrados = historialFiltroActual ? hist.filter(function(h){ var q=historialFiltroActual.toLowerCase(); return h.pregunta.toLowerCase().includes(q)||h.respuesta.toLowerCase().includes(q); }) : hist;
+  var item = filtrados[idx];
+  if (!item) return;
+  var textoPregunta = stripMarkdown(item.pregunta).replace(/\n/g,"<br>");
+  var textoRespuesta = stripMarkdown(item.respuesta).replace(/\n/g,"<br>");
+  var content = "<div style='margin-bottom:16px'><strong>👤 CONSULTA:</strong><br>"+textoPregunta+"</div><hr>" +
+    "<div style='margin-bottom:16px'><strong>⚖️ RESPUESTA:</strong><br>"+textoRespuesta+"</div>";
+  var win = window.open("","_blank");
+  if (!win) { showCopyToast("❌ Permite ventanas emergentes"); return; }
+  var user = currentUser ? currentUser.name : "";
+  win.document.write("<!DOCTYPE html><html><head><title>Funcionarios RC</title><style>body{font-family:Arial,sans-serif;padding:32px;font-size:14px;line-height:1.6;max-width:800px;margin:0 auto}h1{font-size:18px;color:#185FA5;margin-bottom:4px}p{color:#888;font-size:12px;margin-bottom:24px}hr{border:none;border-top:1px solid #e0e0e0;margin:12px 0}</style></head><body><h1>⚖️ Funcionarios RC — Registro Civil</h1><p>Exportado el "+item.fecha+" · "+user+"</p>"+content+"<script>window.onload=function(){window.print();}<\/script></body></html>");
+  win.document.close();
+}
+
 function verHistorialDetalle(idx) {
   var hist = historialCache;
   var filtrados = historialFiltroActual ? hist.filter(function(h){ var q=historialFiltroActual.toLowerCase(); return h.pregunta.toLowerCase().includes(q)||h.respuesta.toLowerCase().includes(q); }) : hist;
