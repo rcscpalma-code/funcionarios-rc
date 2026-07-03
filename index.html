@@ -948,6 +948,10 @@ async function sendMessage() {
   var input = document.getElementById("chatInput");
   var text = input.value.trim();
   if (!text || loading) return;
+  loading = true;
+  var sendBtnEl = document.querySelector(".send-btn");
+  if (sendBtnEl) sendBtnEl.disabled = true;
+  input.disabled = true;
   if (currentUser && currentUser.email !== ADMIN_EMAIL) {
     try {
       var acceso = await proxyFetch({ action:"verificarAcceso", email:currentUser.email });
@@ -956,6 +960,9 @@ async function sendMessage() {
         userStatus.saldo_restante  = acceso.saldo_restante  || 0;
         document.getElementById("mainApp").style.display = "none";
         mostrarLimitePanel(acceso);
+        loading = false;
+        if (sendBtnEl) sendBtnEl.disabled = false;
+        input.disabled = false;
         return;
       }
       userStatus.mensajes_usados = acceso.mensajes_usados || userStatus.mensajes_usados;
@@ -965,7 +972,7 @@ async function sendMessage() {
   }
   var textoOriginal = text;
   messages.push({ role:"user", content:text });
-  input.value=""; loading=true;
+  input.value="";
   document.getElementById("cancelBtn").style.display = "inline-block";
   abortController = new AbortController();
   renderMessages();
@@ -989,7 +996,10 @@ async function sendMessage() {
   loading = false;
   abortController = null;
   document.getElementById("cancelBtn").style.display = "none";
+  input.disabled = false;
+  if (sendBtnEl) sendBtnEl.disabled = false;
   renderMessages();
+  input.focus();
 }
 
 async function registrarConsumoUsuario(inputTokens, outputTokens) {
