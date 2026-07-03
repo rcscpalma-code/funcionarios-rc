@@ -839,7 +839,7 @@ function verHistorialDetalle(idx) {
   document.getElementById("historialView").style.display = "none";
   document.getElementById("historialDetalle").style.display = "block";
   var accionesHtml = (function() {
-    var copiarBtn = "<button class='chat-btn' onclick='copiarHistorialDetalle("+idx+")'>📋 Copiar</button>";
+    var copiarBtn = "<button class='chat-btn' onclick='copiarHistorialDetalle("+idx+")'>📋 Copiar</button> <button class='chat-btn' onclick='printHistorialDetalle("+idx+")'>🖨️ Imprimir</button>";
     if (item.revision === "PENDIENTE") return copiarBtn + " <button class='btn-error' disabled style='opacity:0.5;cursor:default;'>⏳ En revisión</button>";
     var reportarBtn = "<button class='btn-error' onclick='reportarError("+idx+")'>⚠️ Reportar error</button>";
     if (item.revision === "CORRECTO" || item.revision === "CONFIRMADO") {
