@@ -15,7 +15,7 @@
       categoria: null,
       estado: null,
       mensajes_usados: 0,
-      mensajes_limite: 3,
+      mensajes_limite: 3,  
       credito_euros: 0,
       credito_gastado: 0,
       saldo_restante: 0
@@ -766,7 +766,7 @@ function renderHistorialLista(query) {
 function filtrarHistorial() { renderHistorialLista(document.getElementById("historialSearch").value.trim()); }
 
 async function reportarError(idx, event) {
-  event.stopPropagation();
+  if (event) event.stopPropagation();
   var hist = historialCache;
   var filtrados = historialFiltroActual ? hist.filter(function(h){ var q=historialFiltroActual.toLowerCase(); return h.pregunta.toLowerCase().includes(q)||h.respuesta.toLowerCase().includes(q); }) : hist;
   var item = filtrados[idx];
@@ -778,7 +778,13 @@ async function reportarError(idx, event) {
     var revision = await proxyFetch({ action:"verificarRevision", pregunta:item.pregunta });
     if (revision.revisada) { showCopyToast("ℹ️ Ya revisado: " + revision.motivo.substring(0,80)); return; }
     var d = await proxyFetch({ action:"marcarError", email:currentUser.email, fecha:item.fecha, nota:nota||"" });
-    if (d.ok) { showCopyToast("✅ Error reportado."); var idxGlobal = hist.indexOf(item); if (idxGlobal>=0) hist.splice(idxGlobal,1); renderHistorialLista(historialFiltroActual); }
+    if (d.ok) {
+      showCopyToast("✅ Error reportado.");
+      var idxGlobal = hist.indexOf(item);
+      if (idxGlobal>=0) hist.splice(idxGlobal,1);
+      var enDetalle = document.getElementById("historialDetalle").style.display !== "none";
+      if (enDetalle) { volverHistorial(); } else { renderHistorialLista(historialFiltroActual); }
+    }
     else { showCopyToast("❌ Error al reportar: "+(d.error||"desconocido")); }
   } catch(e) { showCopyToast("❌ Error al reportar: "+e.message); }
 }
@@ -799,6 +805,15 @@ async function reportarErrorChat(idx) {
   } catch(e) { showCopyToast("❌ Error al reportar: "+e.message); }
 }
 
+function copiarHistorialDetalle(idx) {
+  var hist = historialCache;
+  var filtrados = historialFiltroActual ? hist.filter(function(h){ var q=historialFiltroActual.toLowerCase(); return h.pregunta.toLowerCase().includes(q)||h.respuesta.toLowerCase().includes(q); }) : hist;
+  var item = filtrados[idx];
+  if (!item) return;
+  var texto = "👤 Consulta:\n" + stripMarkdown(item.pregunta) + "\n\n⚖️ Respuesta:\n" + stripMarkdownWithDocs(item.respuesta, item.docs);
+  doCopy(texto);
+}
+
 function verHistorialDetalle(idx) {
   var hist = historialCache;
   var filtrados = historialFiltroActual ? hist.filter(function(h){ var q=historialFiltroActual.toLowerCase(); return h.pregunta.toLowerCase().includes(q)||h.respuesta.toLowerCase().includes(q); }) : hist;
@@ -806,8 +821,20 @@ function verHistorialDetalle(idx) {
   if (!item) return;
   document.getElementById("historialView").style.display = "none";
   document.getElementById("historialDetalle").style.display = "block";
+  var accionesHtml = (function() {
+    var copiarBtn = "<button class='chat-btn' onclick='copiarHistorialDetalle("+idx+")'>📋 Copiar</button>";
+    if (item.revision === "PENDIENTE") return copiarBtn + " <button class='btn-error' disabled style='opacity:0.5;cursor:default;'>⏳ En revisión</button>";
+    var reportarBtn = "<button class='btn-error' onclick='reportarError("+idx+")'>⚠️ Reportar error</button>";
+    if (item.revision === "CORRECTO" || item.revision === "CONFIRMADO") {
+      return copiarBtn + " " + reportarBtn + " <button class='btn-error' style='border-color:#185FA5;color:#185FA5;' onclick='verRevisionIdx("+idx+")'>📋 Ver revisión</button>";
+    }
+    return copiarBtn + " " + reportarBtn;
+  })();
   var html = "<div style='background:#fff;border:1px solid #e0e0e0;border-radius:9px;padding:16px;'>" +
-    "<div style='font-size:11px;color:#aaa;margin-bottom:8px;'>📅 "+item.fecha+"</div>" +
+    "<div style='display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px;'>" +
+    "<div style='font-size:11px;color:#aaa;'>📅 "+item.fecha+"</div>" +
+    "<div style='display:flex;gap:6px;flex-wrap:wrap;'>"+accionesHtml+"</div>" +
+    "</div>" +
     "<div style='background:#185FA5;color:#fff;border-radius:12px 12px 4px 12px;padding:10px 14px;font-size:14px;margin-bottom:10px;white-space:pre-wrap;'>"+item.pregunta.replace(/</g,"&lt;")+"</div>" +
     "<div style='background:#f8f9fa;border:0.5px solid #e0e0e0;border-radius:12px 12px 12px 4px;padding:10px 14px;font-size:14px;'>"+renderMarkdown(item.respuesta)+"</div>" +
     (item.docs?"<div style='font-size:11px;color:#888;margin-top:6px;padding:3px 8px;background:#f8f9fa;border-radius:5px;border:1px solid #e0e0e0;'>📚 "+renderMarkdown(item.docs)+"</div>":"") +
