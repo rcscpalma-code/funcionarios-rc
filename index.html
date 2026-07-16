@@ -688,9 +688,15 @@ async function proxyFetchIntento(params, signal) {
   var qs = new URLSearchParams(params).toString();
   var LIMITE_URL = 1800;
   if (params.base64 || (BRIDGE_URL.length + 1 + qs.length) > LIMITE_URL) {
+    // "Content-Type: application/json" obliga al navegador a hacer un preflight
+    // OPTIONS antes del POST (no es un tipo "simple" de CORS). Los Web Apps de
+    // Apps Script no responden correctamente a ese preflight, así que el POST
+    // fallaba al instante con "Failed to fetch" antes de llegar siquiera a
+    // enviarse. text/plain sí es un tipo simple (no dispara preflight); Apps
+    // Script parsea igual el JSON del body sin mirar la cabecera declarada.
     var r = await fetch(BRIDGE_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(params),
       signal: signal
     });
