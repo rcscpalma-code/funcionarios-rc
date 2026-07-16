@@ -616,7 +616,7 @@ function mostrarMainApp() {
   var main = document.getElementById("mainApp");
   main.style.display = "flex";
   main.style.flexDirection = "column";
-  messages = [{ role:"assistant", content:"Hola, "+currentUser.name.split(" ")[0]+". Soy el asistente jurídico de Registro Civil.\n\nPuedes preguntarme sobre legislación, resoluciones de la DGRN/DGSJFP, procedimientos, inscripciones, nacionalidad, filiación, matrimonio y cualquier materia de Registro Civil.\n\nCuando vayas a hacer la consulta, redáctala lo más detallamente posible. Indícame todos los datos acerca de la cuestión que quieres consultar, para poder darte la respuesta exacta del caso que consultas.\n\nLa búsqueda en documentos es automática — selecciono los más relevantes para cada consulta." }];
+  messages = [{ role:"assistant", content:"Hola, "+currentUser.name.split(" ")[0]+". Soy el asistente jurídico de Registro Civil.\n\nPuedes preguntarme sobre legislación, resoluciones de la DGRN/DGSJFP, procedimientos, inscripciones, nacionalidad, filiación, matrimonio y cualquier materia de Registro Civil.\n\nCuando vayas a hacer la consulta, redáctala lo más detalladamente posible. Indícame todos los datos acerca de la cuestión que quieres consultar, para poder darte la respuesta exacta del caso que consultas.\n\nLa búsqueda en documentos es automática — selecciono los más relevantes para cada consulta." }];
   renderMessages();
   loadFiles();
   updateContextBar();
