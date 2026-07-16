@@ -674,8 +674,14 @@ function logout() {
 }
 
 async function proxyFetch(params, signal) {
-  // Si hay base64 (archivo grande), usa POST; si no, GET
-  if (params.base64) {
+  // Si hay base64 (archivo grande) o la petición no cabe con margen en una URL
+  // (conversaciones largas, historial con respuestas extensas...), usa POST.
+  // Las peticiones GET van en la querystring y tienen un límite práctico de
+  // longitud de URL (~2000 caracteres en muchos navegadores/proxies); superarlo
+  // provoca un "Failed to fetch" silencioso.
+  var qs = new URLSearchParams(params).toString();
+  var LIMITE_URL = 1800;
+  if (params.base64 || (BRIDGE_URL.length + 1 + qs.length) > LIMITE_URL) {
     var r = await fetch(BRIDGE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -683,7 +689,6 @@ async function proxyFetch(params, signal) {
       signal: signal
     });
   } else {
-    var qs = new URLSearchParams(params).toString();
     var r = await fetch(BRIDGE_URL + "?" + qs, signal ? { signal } : {});
   }
   return r.json();
