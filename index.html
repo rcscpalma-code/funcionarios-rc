@@ -190,6 +190,7 @@
     .user-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 0.5px solid #f0f0f0; font-size: 13px; }
     .user-row .email { color: #555; font-size: 11px; }
     .tab-bar { display: flex; gap: 4px; margin-bottom: 12px; }
+    #panel-admin .tab-bar { position: sticky; top: 0; z-index: 5; background: #f8f9fa; padding-bottom: 10px; flex-wrap: wrap; row-gap: 8px; }
     .tab { padding: 5px 12px; border-radius: 6px; border: 1px solid #ddd; background: transparent; font-size: 12px; cursor: pointer; color: #666; }
     .tab.active { background: #E6F1FB; border-color: #185FA5; color: #185FA5; font-weight: 500; }
     .chat-btn { padding: 6px 14px; border-radius: 7px; border: 1.5px solid #185FA5; background: #E6F1FB; color: #185FA5; cursor: pointer; font-size: 12px; font-weight: 600; }
@@ -846,12 +847,19 @@ async function reportarErrorChat(idx) {
 }
 
 function copiarHistorialDetalle(idx) {
-  var hist = historialCache;
-  var filtrados = historialFiltroActual ? hist.filter(function(h){ var q=historialFiltroActual.toLowerCase(); return h.pregunta.toLowerCase().includes(q)||h.respuesta.toLowerCase().includes(q); }) : hist;
-  var item = filtrados[idx];
-  if (!item) return;
-  var texto = "👤 Consulta:\n" + stripMarkdown(item.pregunta) + "\n\n⚖️ Respuesta:\n" + stripMarkdownWithDocs(item.respuesta, item.docs);
+  if (!historialHiloMsgs.length) return;
+  var texto = historialHiloMsgs.map(function(m){
+    var prefix = m.role==="user" ? "👤 Consulta" : "⚖️ Respuesta";
+    var content = m.role==="assistant" ? stripMarkdownWithDocs(m.content, m.docsUsados) : stripMarkdown(m.content);
+    return prefix + ":\n" + content;
+  }).join("\n\n");
   doCopy(texto);
+}
+
+function copiarHistorialHiloMsg(idx) {
+  var m = historialHiloMsgs[idx];
+  if (!m || m.role !== "assistant") return;
+  doCopy(stripMarkdownWithDocs(m.content, m.docsUsados));
 }
 
 function printHistorialDetalle(idx) {
@@ -896,7 +904,7 @@ function verHistorialDetalle(idx) {
     (item.docs?"<div style='font-size:11px;color:#888;margin-top:6px;padding:3px 8px;background:#f8f9fa;border-radius:5px;border:1px solid #e0e0e0;'>📚 "+renderMarkdown(item.docs)+"</div>":"") +
     "</div>";
   document.getElementById("historialDetalleContenido").innerHTML = html;
-  historialHiloMsgs = [{ role:"user", content:item.pregunta }, { role:"assistant", content:item.respuesta }];
+  historialHiloMsgs = [{ role:"user", content:item.pregunta }, { role:"assistant", content:item.respuesta, docsUsados:item.docs }];
   historialHiloLoading = false;
   historialHiloGen++;
   renderHistorialHilo();
@@ -910,13 +918,16 @@ function verHistorialDetalle(idx) {
 function renderHistorialHilo() {
   var el = document.getElementById("historialHilo");
   if (!el) return;
-  var extra = historialHiloMsgs.slice(2);
-  el.innerHTML = extra.map(function(m){
+  el.innerHTML = historialHiloMsgs.slice(2).map(function(m, i){
+    var idx = i + 2;
     if (m.role === "user") {
       return "<div class='bubble-wrap user'><div class='bubble user'>"+m.content.replace(/</g,"&lt;")+"</div></div>";
     }
     return "<div class='bubble-wrap assistant'><div class='avatar'>⚖️</div><div>" +
+      "<div class='bubble-hover-wrap'>" +
       "<div class='bubble assistant'>"+renderMarkdown(m.content)+"</div>" +
+      "<div class='bubble-action-btns'><button class='bubble-copy-btn' onclick='copiarHistorialHiloMsg("+idx+")' title='Copiar esta respuesta'>📋</button></div>" +
+      "</div>" +
       (m.docsUsados?"<div class='docs-used'>📚 "+renderMarkdown(m.docsUsados)+"</div>":"") +
       "</div></div>";
   }).join("");
