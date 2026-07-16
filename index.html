@@ -338,6 +338,12 @@
       <div id="historialDetalle" style="display:none;">
         <button onclick="volverHistorial()" style="margin-bottom:12px;padding:6px 14px;border-radius:7px;border:1px solid #185FA5;background:#E6F1FB;color:#185FA5;cursor:pointer;font-size:13px;font-weight:600;">← Volver</button>
         <div id="historialDetalleContenido"></div>
+        <div id="historialHilo" style="margin-top:12px;"></div>
+        <div class="input-bar" style="margin-top:12px;border:0.5px solid #e0e0e0;border-radius:9px;">
+          <textarea id="historialFollowupInput" rows="2" style="flex:1" placeholder="¿Alguna duda sobre esta respuesta? Pregunta aquí…" onkeydown="handleHistorialFollowupKey(event)"></textarea>
+          <button class="send-btn" id="historialFollowupBtn" onclick="enviarHistorialFollowup()">➤</button>
+          <button id="historialFollowupCancelBtn" onclick="cancelarHistorialFollowup()" style="display:none;padding:6px 10px;border-radius:8px;background:#fff0f0;border:1.5px solid #c62828;color:#c62828;cursor:pointer;font-size:13px;font-weight:600;">✕</button>
+        </div>
       </div>
     </div>
 
@@ -523,6 +529,7 @@ var chartDiarioInst = null, chartUsuarioInst = null;
 var allAdminUsuarios = [];
 var selectedFolderId = null, folderStack = [];
 var historialCache = [], historialFiltroActual = "";
+var historialHiloMsgs = [], historialHiloLoading = false, historialHiloAbort = null, historialHiloGen = 0;
 var erroresCache = [];
 
 function toggleLoginBtn() {
@@ -889,6 +896,89 @@ function verHistorialDetalle(idx) {
     (item.docs?"<div style='font-size:11px;color:#888;margin-top:6px;padding:3px 8px;background:#f8f9fa;border-radius:5px;border:1px solid #e0e0e0;'>📚 "+renderMarkdown(item.docs)+"</div>":"") +
     "</div>";
   document.getElementById("historialDetalleContenido").innerHTML = html;
+  historialHiloMsgs = [{ role:"user", content:item.pregunta }, { role:"assistant", content:item.respuesta }];
+  historialHiloLoading = false;
+  historialHiloGen++;
+  renderHistorialHilo();
+  var followupInput = document.getElementById("historialFollowupInput");
+  if (followupInput) { followupInput.value = ""; followupInput.disabled = false; }
+  var followupBtn = document.getElementById("historialFollowupBtn");
+  if (followupBtn) followupBtn.disabled = false;
+  document.getElementById("historialFollowupCancelBtn").style.display = "none";
+}
+
+function renderHistorialHilo() {
+  var el = document.getElementById("historialHilo");
+  if (!el) return;
+  var extra = historialHiloMsgs.slice(2);
+  el.innerHTML = extra.map(function(m){
+    if (m.role === "user") {
+      return "<div class='bubble-wrap user'><div class='bubble user'>"+m.content.replace(/</g,"&lt;")+"</div></div>";
+    }
+    return "<div class='bubble-wrap assistant'><div class='avatar'>⚖️</div><div>" +
+      "<div class='bubble assistant'>"+renderMarkdown(m.content)+"</div>" +
+      (m.docsUsados?"<div class='docs-used'>📚 "+renderMarkdown(m.docsUsados)+"</div>":"") +
+      "</div></div>";
+  }).join("");
+  if (historialHiloLoading) el.innerHTML += "<div class='typing'><div class='avatar'>⚖️</div><div class='dots'><div class='dot'></div><div class='dot'></div><div class='dot'></div></div></div>";
+}
+
+function handleHistorialFollowupKey(e) { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); enviarHistorialFollowup(); } }
+
+function cancelarHistorialFollowup() { if (historialHiloAbort) historialHiloAbort.abort(); }
+
+async function enviarHistorialFollowup() {
+  if (historialHiloLoading || !historialHiloMsgs.length) return;
+  var input = document.getElementById("historialFollowupInput");
+  var text = input.value.trim();
+  if (!text) return;
+  if (currentUser && currentUser.email !== ADMIN_EMAIL) {
+    try {
+      var acceso = await proxyFetch({ action:"verificarAcceso", email:currentUser.email });
+      if (!acceso.acceso) {
+        userStatus.mensajes_usados = acceso.mensajes_usados || userStatus.mensajes_usados;
+        userStatus.saldo_restante  = acceso.saldo_restante  || 0;
+        document.getElementById("mainApp").style.display = "none";
+        mostrarLimitePanel(acceso);
+        return;
+      }
+      userStatus.mensajes_usados = acceso.mensajes_usados || userStatus.mensajes_usados;
+      userStatus.saldo_restante  = acceso.saldo_restante  || userStatus.saldo_restante;
+      actualizarSaldoBadge();
+    } catch(e) { console.warn("Error verificando acceso antes de repreguntar:", e.message); }
+  }
+  var gen = historialHiloGen;
+  historialHiloMsgs.push({ role:"user", content:text });
+  input.value = "";
+  historialHiloLoading = true;
+  var btn = document.getElementById("historialFollowupBtn");
+  if (btn) btn.disabled = true;
+  input.disabled = true;
+  document.getElementById("historialFollowupCancelBtn").style.display = "inline-block";
+  historialHiloAbort = new AbortController();
+  renderHistorialHilo();
+  try {
+    var cleanMsgs = historialHiloMsgs.map(function(m){ return { role:m.role, content:m.content }; });
+    var d = await proxyFetch({ action:"chat", messages:JSON.stringify(cleanMsgs), docIds:JSON.stringify([]), email:currentUser?currentUser.email:"anónimo", nombre:currentUser?currentUser.name:"Usuario" }, historialHiloAbort.signal);
+    if (d.error) throw new Error(d.error);
+    if (gen !== historialHiloGen) { loadMiConsumo(); return; }
+    historialHiloMsgs.push({ role:"assistant", content:d.reply, docsUsados:d.docsUsados });
+    if (d.coste_consulta !== undefined) actualizarCosteUltimaConsulta(d.coste_consulta);
+    if (currentUser && currentUser.email !== ADMIN_EMAIL && d.usage_tokens) registrarConsumoUsuario(d.usage_tokens.input||0, d.usage_tokens.output||0);
+    loadMiConsumo();
+  } catch(e) {
+    if (gen !== historialHiloGen) return;
+    if (e.name === "AbortError") { historialHiloMsgs.pop(); input.value = text; }
+    else { historialHiloMsgs.push({ role:"assistant", content:"Error: "+e.message }); }
+  }
+  if (gen !== historialHiloGen) return;
+  historialHiloLoading = false;
+  historialHiloAbort = null;
+  document.getElementById("historialFollowupCancelBtn").style.display = "none";
+  input.disabled = false;
+  if (btn) btn.disabled = false;
+  renderHistorialHilo();
+  input.focus();
 }
 
 function volverHistorial() {
