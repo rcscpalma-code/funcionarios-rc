@@ -127,6 +127,8 @@
     .bubble.assistant th, .bubble.assistant td { border: 1px solid #e0e0e0; padding: 4px 8px; text-align: left; }
     .bubble.assistant th { background: #f8f9fa; font-weight: 600; }
     .docs-used { font-size: 11px; color: #888; margin-top: 4px; padding: 3px 8px; background: #f8f9fa; border-radius: 5px; border: 1px solid #e0e0e0; }
+    .docs-mas-btn { display: inline-block; margin-left: 6px; font-size: 10px; color: #185FA5; background: #eaf2fb; border: 1px solid #bcd6f0; border-radius: 10px; padding: 1px 8px; cursor: pointer; font-family: inherit; }
+    .docs-mas-btn:hover { background: #d9eafd; }
     .input-bar { padding: 10px 12px; border-top: 0.5px solid #e0e0e0; display: flex; gap: 8px; align-items: flex-end; background: #fff; }
     textarea { resize: none; font-size: 14px; padding: 8px 10px; border-radius: 8px; border: 1px solid #ddd; background: #f8f9fa; color: #1a1a1a; line-height: 1.5; font-family: inherit; outline: none; }
     .send-btn { padding: 8px 16px; border-radius: 8px; background: #185FA5; color: #fff; border: none; cursor: pointer; font-size: 18px; flex-shrink: 0; }
@@ -165,6 +167,15 @@
     .limite-opciones { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
     .btn-aportacion { padding: 10px 22px; border-radius: 8px; background: #185FA5; color: #fff; border: none; cursor: pointer; font-size: 14px; font-weight: 600; }
     .btn-baja { padding: 8px 18px; border-radius: 8px; background: #fff; color: #c62828; border: 1.5px solid #ef9a9a; cursor: pointer; font-size: 13px; }
+    .btn-colaborar { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 600; cursor: pointer; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .btn-colaborar:hover { background: #d7ecd9; }
+    .importe-selector { display: flex; gap: 14px; justify-content: center; font-size: 13px; color: #555; margin-top: 8px; }
+    .importe-selector label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+    .importe-selector input { cursor: pointer; }
+    .aportar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 50; align-items: center; justify-content: center; padding: 20px; }
+    .aportar-card { background: #fff; border-radius: 14px; padding: 28px 24px 22px; max-width: 340px; width: 100%; text-align: center; position: relative; }
+    .aportar-close { position: absolute; top: 8px; right: 10px; border: none; background: none; font-size: 20px; line-height: 1; color: #999; cursor: pointer; padding: 4px; }
+    .aportar-close:hover { color: #555; }
     #esperaPanel { display: none; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 32px; gap: 16px; text-align: center; }
     .admin-panel { padding: 20px; }
     .admin-panel h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
@@ -240,6 +251,7 @@
       <img id="userAvatar" src="" alt=""/>
       <span id="userName"></span>
       <span id="saldoBadge" class="saldo-badge" style="display:none"></span>
+      <button id="btnColaborar" class="btn-colaborar" style="display:none" onclick="mostrarModalColaborar()">💚 Colaborar</button>
       <div id="usageBadgeWrap" style="display:none;flex-direction:column;align-items:flex-end;line-height:1.35;gap:2px;">
         <span id="lastCostBadge" style="font-size:10px;color:#999;"></span>
         <span id="myUsageBadge" class="my-usage"></span>
@@ -285,8 +297,12 @@
       <strong>Aportación por transferencia bancaria</strong>
       <div class="iban-num">ES65 0182 3441 2102 0157 4294</div>
       <div class="concepto">Concepto: <strong id="conceptoPago">colaboración RC-usuario</strong></div>
+      <div class="importe-selector" id="importeSelectorLimite">
+        <label><input type="radio" name="importeLimite" value="5"> 5 €</label>
+        <label><input type="radio" name="importeLimite" value="10" checked> 10 €</label>
+        <label><input type="radio" name="importeLimite" value="15"> 15 €</label>
+      </div>
       <div style="margin-top:10px;font-size:11px;color:#888;line-height:1.5;">
-        Importes sugeridos: <strong>5 €</strong> · <strong>10 €</strong> · <strong>15 €</strong><br>
         Tras confirmar el pago, el administrador activará tu acceso.
       </div>
     </div>
@@ -295,6 +311,33 @@
       <button class="btn-baja" onclick="solicitarBajaUsuario()">🗑 Eliminar mi cuenta</button>
     </div>
     <div id="limiteStatus" style="font-size:12px;color:#888;margin-top:8px;"></div>
+  </div>
+
+  <!-- ── APORTACIÓN ANTICIPADA (MODAL, ACCESIBLE SIN AGOTAR MENSAJES) ── -->
+  <div id="aportarOverlay" class="aportar-overlay" onclick="if(event.target===this) cerrarModalColaborar()">
+    <div class="aportar-card">
+      <button class="aportar-close" onclick="cerrarModalColaborar()">✕</button>
+      <div class="limite-icon" style="font-size:36px;">💚</div>
+      <div class="limite-titulo" style="margin-top:6px;">Colabora con el proyecto</div>
+      <div class="limite-msg">Si quieres apoyar el mantenimiento de la aplicación antes de agotar tus mensajes gratuitos, puedes hacer una aportación voluntaria cuando quieras.</div>
+      <div class="limite-iban" style="margin-top:12px;">
+        <strong>Aportación por transferencia bancaria</strong>
+        <div class="iban-num">ES65 0182 3441 2102 0157 4294</div>
+        <div class="concepto">Concepto: <strong id="conceptoPagoAnticipado">colaboración RC-usuario</strong></div>
+        <div class="importe-selector" id="importeSelectorAnticipado">
+          <label><input type="radio" name="importeAnticipado" value="5"> 5 €</label>
+          <label><input type="radio" name="importeAnticipado" value="10" checked> 10 €</label>
+          <label><input type="radio" name="importeAnticipado" value="15"> 15 €</label>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:#888;line-height:1.5;">
+          Tras confirmar el pago, el administrador activará o ampliará tu saldo.
+        </div>
+      </div>
+      <div class="limite-opciones" style="margin-top:14px;">
+        <button class="btn-aportacion" onclick="mostrarInstruccionesPagoAnticipado()">💳 Ya he realizado la aportación</button>
+      </div>
+      <div id="aportarStatus" style="font-size:12px;color:#888;margin-top:8px;"></div>
+    </div>
   </div>
 
   <!-- ── APP PRINCIPAL ── -->
@@ -647,8 +690,44 @@ function mostrarLimitePanel(acceso) {
   document.getElementById("limitePanel").style.display = "flex";
 }
 
-function mostrarInstruccionesPago() {
-  document.getElementById("limiteStatus").innerHTML = "✅ Perfecto. Realiza la transferencia y envía el comprobante a <strong>fororegistrocivil@gmail.com</strong> indicando tu email. El administrador activará tu acceso en breve.";
+async function mostrarInstruccionesPago() {
+  var status = document.getElementById("limiteStatus");
+  status.innerHTML = "⏳ Registrando tu aportación…";
+  var radio = document.querySelector('input[name="importeLimite"]:checked');
+  var importe = radio ? radio.value : 10;
+  try {
+    var r = await proxyFetch({ action: "registrarIntencionAportacion", email: currentUser.email, importe: importe });
+    status.innerHTML = "✅ " + (r.msg || "Aportación registrada.") +
+      " Si prefieres, también puedes enviar el comprobante a <strong>fororegistrocivil@gmail.com</strong> indicando tu email.";
+    if (r.conciliado) { setTimeout(function(){ showApp(); }, 1500); }
+  } catch(e) {
+    status.innerHTML = "✅ Perfecto. Realiza la transferencia y envía el comprobante a <strong>fororegistrocivil@gmail.com</strong> indicando tu email. El administrador activará tu acceso en breve.";
+  }
+}
+
+function mostrarModalColaborar() {
+  document.getElementById("conceptoPagoAnticipado").textContent = "RC-" + (currentUser ? currentUser.email.split("@")[0] : "usuario");
+  document.getElementById("aportarStatus").innerHTML = "";
+  document.getElementById("aportarOverlay").style.display = "flex";
+}
+
+function cerrarModalColaborar() {
+  document.getElementById("aportarOverlay").style.display = "none";
+}
+
+async function mostrarInstruccionesPagoAnticipado() {
+  var status = document.getElementById("aportarStatus");
+  status.innerHTML = "⏳ Registrando tu aportación…";
+  var radio = document.querySelector('input[name="importeAnticipado"]:checked');
+  var importe = radio ? radio.value : 10;
+  try {
+    var r = await proxyFetch({ action: "registrarIntencionAportacion", email: currentUser.email, importe: importe });
+    status.innerHTML = "✅ " + (r.msg || "Aportación registrada.") +
+      " Si prefieres, también puedes enviar el comprobante a <strong>fororegistrocivil@gmail.com</strong> indicando tu email.";
+    if (r.conciliado) { setTimeout(function(){ cerrarModalColaborar(); showApp(); }, 1500); }
+  } catch(e) {
+    status.innerHTML = "✅ Perfecto. Realiza la transferencia y envía el comprobante a <strong>fororegistrocivil@gmail.com</strong> indicando tu email. El administrador activará o ampliará tu saldo en breve.";
+  }
 }
 
 async function solicitarBajaUsuario() {
@@ -663,13 +742,15 @@ async function solicitarBajaUsuario() {
 
 function actualizarSaldoBadge() {
   var badge = document.getElementById("saldoBadge");
-  if (!userStatus.categoria || currentUser.email === ADMIN_EMAIL) { badge.style.display = "none"; return; }
+  var btnColaborar = document.getElementById("btnColaborar");
+  if (!userStatus.categoria || currentUser.email === ADMIN_EMAIL) { badge.style.display = "none"; btnColaborar.style.display = "none"; return; }
   badge.style.display = "inline-block";
   badge.className = "saldo-badge " + userStatus.categoria;
   if (userStatus.categoria === "cortesia") { badge.textContent = "🎁 " + (userStatus.mensajes_limite - userStatus.mensajes_usados) + " msg gratis"; }
   else if (userStatus.categoria === "colaborador") { badge.textContent = "💚 " + (userStatus.saldo_restante || 0).toFixed(2) + " €"; }
   else if (userStatus.categoria === "vip") { badge.textContent = "⭐ VIP"; }
   else if (userStatus.categoria === "bloqueado") { badge.textContent = "🚫 Bloqueado"; }
+  btnColaborar.style.display = (userStatus.categoria === "cortesia" || userStatus.categoria === "colaborador") ? "inline-block" : "none";
 }
 
 function logout() {
@@ -1097,9 +1178,12 @@ function renderMessages() {
         (esRespuestaReal?"<button class='bubble-error-btn' onclick='reportarErrorChat("+idx+")' title='Reportar error'>⚠️</button>":"") +
         "</div></div>"
       : "<div class='bubble user'>"+m.content.replace(/</g,"&lt;")+"</div>";
+    var docsExtraBtn = (m.docsExtra && m.docsExtra.length)
+      ? "<button class='docs-mas-btn' onclick='mostrarDocsRelacionados("+idx+")'>+ Más ("+m.docsExtra.length+")</button>"
+      : "";
     return "<div class='bubble-wrap "+m.role+"'>" +
       (m.role==="assistant"?"<div class='avatar'>⚖️</div>":"") +
-      "<div>"+bubbleContent+(m.docsUsados?"<div class='docs-used'>📚 "+renderMarkdown(m.docsUsados)+"</div>":"")+"</div></div>";
+      "<div>"+bubbleContent+(m.docsUsados?"<div class='docs-used'>📚 "+renderMarkdown(m.docsUsados)+docsExtraBtn+"</div>":"")+"</div></div>";
   }).join("");
   if (loading) el.innerHTML += "<div class='typing'><div class='avatar'>⚖️</div><div class='dots'><div class='dot'></div><div class='dot'></div><div class='dot'></div></div></div>";
   el.scrollTop = el.scrollHeight;
@@ -1157,7 +1241,7 @@ async function sendMessage() {
   try {
     var result = await callBridge(messages, abortController.signal);
     if (result) {
-      messages.push({ role:"assistant", content:result.reply, docsUsados:result.docsUsados });
+      messages.push({ role:"assistant", content:result.reply, docsUsados:result.docsUsados, docsExtra:result.docsExtra });
       guardarEnHistorial(text, result.reply, result.docsUsados);
       if (result.coste_consulta !== undefined) {
         actualizarCosteUltimaConsulta(result.coste_consulta);
@@ -1572,6 +1656,51 @@ function verDetalleError(idx) {
 
 function cerrarDetalleError() {
   var overlay = document.getElementById("errorDetailOverlay");
+  if (overlay) {
+    if (overlay._escHandler) document.removeEventListener("keydown", overlay._escHandler);
+    overlay.remove();
+  }
+}
+
+function mostrarDocsRelacionados(idx) {
+  var m = messages[idx];
+  if (!m || !m.docsExtra || !m.docsExtra.length) return;
+
+  var overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;";
+  overlay.id = "docsRelacionadosOverlay";
+
+  var box = document.createElement("div");
+  box.style.cssText = "background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.25);overflow:hidden;";
+
+  var header = document.createElement("div");
+  header.style.cssText = "padding:16px 20px;border-bottom:1px solid #e0e0e0;background:#f8f9fa;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;";
+  header.innerHTML = "<div style='font-weight:600;font-size:15px;color:#185FA5;'>📚 Documentos adicionales</div>" +
+    "<button onclick='cerrarDocsRelacionados()' style='background:none;border:none;font-size:22px;cursor:pointer;color:#999;padding:4px 8px;line-height:1;'>✕</button>";
+
+  var body = document.createElement("div");
+  body.style.cssText = "padding:16px 20px;overflow-y:auto;flex:1;";
+  body.innerHTML = "<div style='font-size:12px;color:#888;margin-bottom:12px;'>Otros documentos relevantes para esta consulta, además de los ya citados en la respuesta. Se abren en una pestaña nueva.</div>" +
+    "<div style='display:flex;flex-direction:column;gap:8px;'>" +
+    m.docsExtra.map(function(d){
+      return "<a href='"+d.url+"' target='_blank' rel='noopener noreferrer' style='display:block;padding:10px 12px;background:#f8f9fa;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;color:#185FA5;text-decoration:none;word-break:break-word;'>🔗 " +
+        String(d.name||"").replace(/</g,"&lt;") + "</a>";
+    }).join("") +
+    "</div>";
+
+  box.appendChild(header);
+  box.appendChild(body);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click", function(ev){ if(ev.target===overlay) overlay.remove(); });
+  var escHandler = function(ev){ if(ev.key==="Escape") cerrarDocsRelacionados(); };
+  document.addEventListener("keydown", escHandler);
+  overlay._escHandler = escHandler;
+}
+
+function cerrarDocsRelacionados() {
+  var overlay = document.getElementById("docsRelacionadosOverlay");
   if (overlay) {
     if (overlay._escHandler) document.removeEventListener("keydown", overlay._escHandler);
     overlay.remove();
