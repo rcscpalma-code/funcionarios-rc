@@ -1092,6 +1092,22 @@ function filtrarDocumentos() { renderFiles(); }
 function toggleDoc(id) { selectedDocs=selectedDocs.includes(id)?selectedDocs.filter(function(d){return d!==id;}):[...selectedDocs,id]; renderFiles(); updateContextBar(); }
 function clearSelection() { selectedDocs=[]; renderFiles(); updateContextBar(); }
 
+// Escapa texto que viene de datos de otros usuarios (nombre de cuenta de
+// Google, email, motivo de bloqueo…) antes de insertarlo en innerHTML.
+// El nombre de Google es de libre elección del propio usuario — sin esto,
+// cualquiera podría registrarse con un nombre tipo "<img src=x
+// onerror=...>" y ejecutar JavaScript en el navegador del ADMIN la
+// próxima vez que abra el panel de usuarios (robo de sesión: el idToken
+// real vive en localStorage).
+function escapeHtml(str) {
+  return String(str == null ? "" : str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ── RENDER MARKDOWN (Fix 1 XSS aplicado) ─────────────────────────────
 function sanitizeHTML(str) {
   return (str || "")
@@ -1387,7 +1403,7 @@ function renderAdminUserList(lista) {
     var catClass = "cat-" + (u.estado === "espera" ? "espera" : u.categoria);
     var catLabel = u.estado === "espera" ? "⏳ espera" : u.categoria;
     var saldoInfo = u.categoria === "colaborador" ? " · <strong style='color:#2e7d32'>" + u.saldo_restante.toFixed(2) + " € saldo</strong>" : u.categoria === "cortesia" ? " · " + u.mensajes_usados + " msgs usados" : "";
-    return "<div class='user-row' style='cursor:pointer;' onclick='seleccionarUsuarioAdmin(\""+u.email+"\")'><div><div style='font-weight:500;font-size:13px;'>"+(u.nombre||u.email)+"</div><div class='email'>"+u.email+saldoInfo+"</div></div><span class='categoria-pill "+catClass+"'>"+catLabel+"</span></div>";
+    return "<div class='user-row' style='cursor:pointer;' onclick='seleccionarUsuarioAdmin(\""+escapeHtml(u.email)+"\")'><div><div style='font-weight:500;font-size:13px;'>"+escapeHtml(u.nombre||u.email)+"</div><div class='email'>"+escapeHtml(u.email)+saldoInfo+"</div></div><span class='categoria-pill "+catClass+"'>"+catLabel+"</span></div>";
   }).join("");
 }
 
@@ -1404,7 +1420,7 @@ function seleccionarUsuarioAdmin(email) {
   card.style.display = "block";
   document.getElementById("userDetailNombre").textContent = (u.nombre || u.email);
   var saldoLinea = u.categoria === "colaborador" ? "<br>💰 Crédito: "+u.credito_euros.toFixed(2)+"€ · Gastado: "+u.credito_gastado.toFixed(2)+"€ · <strong>Saldo: "+u.saldo_restante.toFixed(2)+"€</strong>" : u.categoria === "cortesia" ? "<br>💬 Mensajes usados: "+u.mensajes_usados+" / "+3 : "";
-  document.getElementById("userDetailInfo").innerHTML = "📧 "+u.email+"<br>📂 Categoría: <strong>"+u.categoria+"</strong> · Estado: <strong>"+u.estado+"</strong>"+saldoLinea+"<br>📊 Tokens: "+u.tokens_input.toLocaleString()+" entrada · "+u.tokens_output.toLocaleString()+" salida · Coste real: "+u.coste_total.toFixed(4)+"€"+(u.motivo_bloqueo ? "<br>🚫 Motivo bloqueo: "+u.motivo_bloqueo : "");
+  document.getElementById("userDetailInfo").innerHTML = "📧 "+escapeHtml(u.email)+"<br>📂 Categoría: <strong>"+escapeHtml(u.categoria)+"</strong> · Estado: <strong>"+escapeHtml(u.estado)+"</strong>"+saldoLinea+"<br>📊 Tokens: "+u.tokens_input.toLocaleString()+" entrada · "+u.tokens_output.toLocaleString()+" salida · Coste real: "+u.coste_total.toFixed(4)+"€"+(u.motivo_bloqueo ? "<br>🚫 Motivo bloqueo: "+escapeHtml(u.motivo_bloqueo) : "");
   var acciones = "";
   if (u.estado === "espera") acciones += "<button class='btn-success' onclick='accionAdmin(\"activar\")'>✅ Activar</button> ";
   if (u.categoria !== "vip") acciones += "<button class='btn-primary' onclick='accionAdmin(\"vip\")' style='background:#7b1fa2;'>⭐ Hacer VIP</button> ";
@@ -1456,7 +1472,7 @@ async function verListaEspera() {
   try{
     var d=await proxyFetch({action:"getListaEspera",email:currentUser.email}); if(d.error)throw new Error(d.error);
     if(!d.lista.length){container.innerHTML="<div style='color:#888;font-size:13px;'>No hay usuarios en lista de espera.</div>";return;}
-    container.innerHTML="<div style='font-size:12px;color:#888;margin-bottom:8px;'>"+d.total+" usuarios esperando:</div>"+d.lista.map(function(u){ return "<div style='background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:13px;'><div><strong>"+(u.nombre||u.email)+"</strong><br><span style='font-size:11px;color:#888;'>"+u.email+" · Alta: "+u.fecha_alta+"</span></div><button class='btn-success' style='font-size:11px;padding:4px 10px;' onclick='activarUsuarioDirecto(\""+u.email+"\")'>✅ Activar</button></div>"; }).join("");
+    container.innerHTML="<div style='font-size:12px;color:#888;margin-bottom:8px;'>"+d.total+" usuarios esperando:</div>"+d.lista.map(function(u){ return "<div style='background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:13px;'><div><strong>"+escapeHtml(u.nombre||u.email)+"</strong><br><span style='font-size:11px;color:#888;'>"+escapeHtml(u.email)+" · Alta: "+escapeHtml(u.fecha_alta)+"</span></div><button class='btn-success' style='font-size:11px;padding:4px 10px;' onclick='activarUsuarioDirecto(\""+escapeHtml(u.email)+"\")'>✅ Activar</button></div>"; }).join("");
   }catch(e){container.innerHTML="<div style='color:#c00;font-size:13px;'>❌ "+e.message+"</div>";}
 }
 
@@ -1519,7 +1535,7 @@ async function loadErrores() {
       var notaCorta = e.nota ? (e.nota.length > 60 ? e.nota.substring(0,60) + "…" : e.nota) : "";
       return "<div onclick='verDetalleError("+eIdx+")' style='background:#fff8f8;border:1px solid #ffcdd2;border-radius:9px;padding:14px;margin-bottom:10px;cursor:pointer;transition:box-shadow 0.15s;' onmouseover='this.style.boxShadow=\"0 2px 8px rgba(198,40,40,0.15)\"' onmouseout='this.style.boxShadow=\"none\"'>" +
         "<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;'>" +
-        "<div style='font-size:11px;color:#aaa;'>📅 " + fechaStr + " · 👤 " + (e.nombre||e.email) + "</div>" +
+        "<div style='font-size:11px;color:#aaa;'>📅 " + fechaStr + " · 👤 " + escapeHtml(e.nombre||e.email) + "</div>" +
         (notaCorta ? "<div style='font-size:11px;background:#ffebee;color:#c62828;padding:2px 8px;border-radius:10px;max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>⚠️ " + notaCorta + "</div>" : "") +
         "</div>" +
         "<div style='font-size:13px;color:#185FA5;font-weight:500;'>" + pregCorta.replace(/</g,"&lt;") + "</div>" +
@@ -1547,7 +1563,7 @@ function verDetalleError(idx) {
   var header = document.createElement("div");
   header.style.cssText = "padding:16px 20px;border-bottom:1px solid #ffcdd2;background:#fff8f8;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;";
   header.innerHTML = "<div><div style='font-weight:600;font-size:15px;color:#c62828;'>⚠️ Reporte de error #" + (idx+1) + "</div>" +
-    "<div style='font-size:11px;color:#aaa;margin-top:2px;'>📅 " + fechaStr + " · 👤 " + (e.nombre||e.email) + "</div></div>" +
+    "<div style='font-size:11px;color:#aaa;margin-top:2px;'>📅 " + fechaStr + " · 👤 " + escapeHtml(e.nombre||e.email) + "</div></div>" +
     "<button onclick='cerrarDetalleError()' style='background:none;border:none;font-size:22px;cursor:pointer;color:#999;padding:4px 8px;line-height:1;'>✕</button>";
 
   // Body scrollable
