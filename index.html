@@ -270,9 +270,22 @@
 
   <!-- ── LISTA DE ESPERA ── -->
   <div id="esperaPanel">
-    <div class="limite-icon">⏳</div>
-    <div class="limite-titulo">En lista de espera</div>
-    <div class="limite-msg">Gracias por registrarte. Actualmente estamos en fase beta con acceso limitado.<br><br>Te avisaremos en cuanto haya plaza disponible.</div>
+    <div class="limite-icon" id="esperaIcon">⏳</div>
+    <div class="limite-titulo" id="esperaTitulo">En lista de espera</div>
+    <div class="limite-msg" id="esperaMsg">Gracias por registrarte. Actualmente estamos en fase beta con acceso limitado.<br><br>Te avisaremos en cuanto haya plaza disponible.</div>
+    <div class="limite-iban" id="esperaIban" style="display:none;">
+      <strong>Aportación por transferencia bancaria</strong>
+      <div class="iban-num">ES65 0182 3441 2102 0157 4294</div>
+      <div class="concepto">Concepto: <strong id="conceptoPagoEspera">colaboración RC-usuario</strong></div>
+      <div style="margin-top:10px;font-size:11px;color:#888;line-height:1.5;">
+        Importes sugeridos: <strong>5 €</strong> · <strong>10 €</strong> · <strong>15 €</strong><br>
+        Tras confirmar el pago, el administrador activará tu acceso al instante, sin esperar turno.
+      </div>
+    </div>
+    <div class="limite-opciones" id="esperaOpciones" style="display:none;">
+      <button class="btn-aportacion" onclick="mostrarInstruccionesPagoEspera()">💳 Ya he realizado la aportación</button>
+    </div>
+    <div id="esperaStatus" style="font-size:12px;color:#888;margin-top:8px;"></div>
     <button class="logout-btn" style="padding:8px 20px;font-size:13px;" onclick="logout()">Cerrar sesión</button>
   </div>
 
@@ -592,11 +605,13 @@ async function showApp() {
     var reg = await proxyFetch({ action: "registrarUsuario", email: currentUser.email, nombre: currentUser.name, consentimiento_rgpd: "1" });
     var acceso = await proxyFetch({ action: "verificarAcceso", email: currentUser.email });
     if (!acceso.acceso) {
-      if (acceso.motivo === "lista_espera") { document.getElementById("esperaPanel").style.display = "flex"; return; }
+      if (acceso.motivo === "lista_espera" || acceso.motivo === "expirado") { mostrarEsperaPanel(acceso); return; }
       if (acceso.motivo === "limite_cortesia" || acceso.motivo === "saldo_agotado") { mostrarLimitePanel(acceso); return; }
       if (acceso.motivo === "bloqueado") {
+        document.getElementById("esperaIban").style.display = "none";
+        document.getElementById("esperaOpciones").style.display = "none";
+        document.getElementById("esperaMsg").textContent = "Tu acceso ha sido suspendido. Contacta con el administrador.";
         document.getElementById("esperaPanel").style.display = "flex";
-        document.querySelector("#esperaPanel .limite-msg") && (document.querySelector("#esperaPanel .limite-msg").textContent = "Tu acceso ha sido suspendido. Contacta con el administrador.");
         return;
       }
     }
@@ -649,6 +664,23 @@ function mostrarLimitePanel(acceso) {
 
 function mostrarInstruccionesPago() {
   document.getElementById("limiteStatus").innerHTML = "✅ Perfecto. Realiza la transferencia y envía el comprobante a <strong>fororegistrocivil@gmail.com</strong> indicando tu email. El administrador activará tu acceso en breve.";
+}
+
+function mostrarEsperaPanel(acceso) {
+  var msgDefecto = acceso && acceso.motivo === "expirado"
+    ? "Llevas un tiempo sin usar la aplicación y hay usuarios en lista de espera, así que se te ha pasado temporalmente a la cola hasta que te vuelva a tocar turno."
+    : "Gracias por registrarte. Actualmente estamos en fase beta con acceso limitado.\n\nTe avisaremos en cuanto haya plaza disponible.";
+  document.getElementById("esperaTitulo").textContent = acceso && acceso.motivo === "expirado" ? "Turno pausado temporalmente" : "En lista de espera";
+  document.getElementById("esperaMsg").innerHTML = ((acceso && acceso.msg) || msgDefecto).replace(/\n/g, "<br>");
+  document.getElementById("esperaIban").style.display = "block";
+  document.getElementById("esperaOpciones").style.display = "flex";
+  document.getElementById("conceptoPagoEspera").textContent = "RC-" + (currentUser ? currentUser.email.split("@")[0] : "usuario");
+  document.getElementById("esperaStatus").textContent = "";
+  document.getElementById("esperaPanel").style.display = "flex";
+}
+
+function mostrarInstruccionesPagoEspera() {
+  document.getElementById("esperaStatus").innerHTML = "✅ Perfecto. Realiza la transferencia y envía el comprobante a <strong>fororegistrocivil@gmail.com</strong> indicando tu email. El administrador activará tu acceso en breve, sin esperar turno.";
 }
 
 async function solicitarBajaUsuario() {
