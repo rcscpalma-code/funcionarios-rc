@@ -559,7 +559,7 @@ window.onload = function() {
 
 function handleCredential(resp) {
   var p = parseJwt(resp.credential);
-  currentUser = { email: p.email, name: p.name, picture: p.picture };
+  currentUser = { email: p.email, name: p.name, picture: p.picture, idToken: resp.credential };
   localStorage.setItem(SESSION_KEY, JSON.stringify({ user: currentUser, expires: Date.now() + SESSION_TTL }));
   showApp();
 }
@@ -715,6 +715,13 @@ async function proxyFetchIntento(params, signal) {
 }
 
 async function proxyFetch(params, signal) {
+  // El backend nunca confía en el email que mande el cliente: adjuntamos
+  // siempre el ID token real de la sesión de Google para que lo verifique
+  // contra los servidores de Google antes de resolver la identidad de quien
+  // llama. Sin esto, cualquiera podría suplantar a otro usuario (o al
+  // administrador) con solo conocer su email.
+  if (currentUser && currentUser.idToken) params = Object.assign({ id_token: currentUser.idToken }, params);
+
   // Las respuestas de chat con documentos pueden tardar 30-45s (lectura de
   // PDFs + contexto grande a Claude); a veces la conexión se corta antes de
   // llegar respuesta y fetch() lanza un error de red genérico ("Failed to
