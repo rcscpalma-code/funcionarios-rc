@@ -1014,7 +1014,7 @@ async function enviarHistorialFollowup() {
     if (gen !== historialHiloGen) { loadMiConsumo(); return; }
     historialHiloMsgs.push({ role:"assistant", content:d.reply, docsUsados:d.docsUsados });
     if (d.coste_consulta !== undefined) actualizarCosteUltimaConsulta(d.coste_consulta);
-    if (currentUser && currentUser.email !== ADMIN_EMAIL && d.usage_tokens) registrarConsumoUsuario(d.usage_tokens.input||0, d.usage_tokens.output||0);
+    if (currentUser && currentUser.email !== ADMIN_EMAIL) aplicarConsumoDesdeRespuesta(d);
     loadMiConsumo();
   } catch(e) {
     if (gen !== historialHiloGen) return;
@@ -1217,9 +1217,7 @@ async function sendMessage() {
       if (result.coste_consulta !== undefined) {
         actualizarCosteUltimaConsulta(result.coste_consulta);
       }
-      if (currentUser && currentUser.email !== ADMIN_EMAIL && result.usage_tokens) {
-        registrarConsumoUsuario(result.usage_tokens.input || 0, result.usage_tokens.output || 0);
-      }
+      if (currentUser && currentUser.email !== ADMIN_EMAIL) aplicarConsumoDesdeRespuesta(result);
       loadMiConsumo();
     }
   } catch(e) {
@@ -1235,17 +1233,19 @@ async function sendMessage() {
   input.focus();
 }
 
-async function registrarConsumoUsuario(inputTokens, outputTokens) {
-  if (!currentUser || !inputTokens) return;
-  try {
-    var r = await proxyFetch({ action:"registrarConsumoUsuario", email:currentUser.email, input_tokens:inputTokens, output_tokens:outputTokens });
-    if (r.ok) {
-      if (r.mensajes_usados !== undefined) userStatus.mensajes_usados = r.mensajes_usados;
-      if (r.saldo_restante  !== undefined) userStatus.saldo_restante  = r.saldo_restante;
-      if (r.credito_gastado !== undefined) userStatus.credito_gastado = r.credito_gastado;
-      actualizarSaldoBadge();
-    }
-  } catch(e) { console.warn("Error registrando consumo usuario:", e.message); }
+// El backend ahora descuenta el mensaje de cortesía / crédito de
+// colaborador dentro de la propia respuesta del chat (atómico con la
+// generación de la respuesta), así que ya no hace falta una segunda
+// llamada aparte para "confirmarlo" -- esa segunda llamada era el hueco
+// que permitía saltarse el descuento sin más que no hacerla.
+function aplicarConsumoDesdeRespuesta(d) {
+  if (!currentUser || !d) return;
+  if (d.mensajes_usados !== undefined) userStatus.mensajes_usados = d.mensajes_usados;
+  if (d.mensajes_limite !== undefined) userStatus.mensajes_limite = d.mensajes_limite;
+  if (d.saldo_restante  !== undefined) userStatus.saldo_restante  = d.saldo_restante;
+  if (d.credito_gastado !== undefined) userStatus.credito_gastado = d.credito_gastado;
+  if (d.credito_euros   !== undefined) userStatus.credito_euros   = d.credito_euros;
+  actualizarSaldoBadge();
 }
 
 function cancelarConsulta() { if (abortController) abortController.abort(); }
