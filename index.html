@@ -251,13 +251,13 @@
       <img id="userAvatar" src="" alt=""/>
       <span id="userName"></span>
       <span id="saldoBadge" class="saldo-badge" style="display:none"></span>
-      <span id="oficinaBadge" class="saldo-badge" style="display:none;background:#e3f2fd;color:#1565c0;" title="Oficina de Registro Civil configurada en tu perfil"></span>
       <button id="btnColaborar" class="btn-colaborar" style="display:none" onclick="mostrarModalColaborar()">💚 Colaborar</button>
       <div id="usageBadgeWrap" style="display:none;flex-direction:column;align-items:flex-end;line-height:1.35;gap:2px;">
         <span id="lastCostBadge" style="font-size:10px;color:#999;"></span>
         <span id="myUsageBadge" class="my-usage"></span>
       </div>
       <button class="logout-btn" onclick="logout()">Salir</button>
+      <span id="oficinaBadge" class="saldo-badge" style="display:none;background:#e3f2fd;color:#1565c0;flex-basis:100%;margin-top:2px;cursor:pointer;" title="Oficina de Registro Civil configurada en tu perfil — pulsa para editarla" onclick="setMode('micuenta')"></span>
     </div>
   </div>
 
@@ -351,6 +351,26 @@
         <button class="btn-aportacion" onclick="mostrarInstruccionesPagoAnticipado()">💳 Ya he realizado la aportación</button>
       </div>
       <div id="aportarStatus" style="font-size:12px;color:#888;margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- ── OFICINA DEL USUARIO (MODAL, se pide tras el login si no consta) ── -->
+  <div id="oficinaOverlay" class="aportar-overlay">
+    <div class="aportar-card">
+      <div class="limite-icon" style="font-size:36px;">📍</div>
+      <div class="limite-titulo" style="margin-top:6px;">¿Cuál es tu oficina de Registro Civil?</div>
+      <div class="limite-msg">
+        Para darte mejores respuestas necesitamos saber desde cuándo se aplica la Ley 20/2011
+        (DICIREG) en tu oficina. Indica el municipio y lo comprobamos automáticamente.
+      </div>
+      <div style="margin-top:14px;">
+        <input id="oficinaModalInput" type="text" placeholder="Ej: Garafía" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;" onkeydown="if(event.key==='Enter') guardarOficinaModal()">
+      </div>
+      <div class="limite-opciones" style="margin-top:14px;">
+        <button class="btn-aportacion" onclick="guardarOficinaModal()">Guardar</button>
+      </div>
+      <div id="oficinaModalStatus" style="font-size:12px;color:#888;margin-top:8px;min-height:16px;"></div>
+      <button onclick="cerrarModalOficina()" style="margin-top:10px;background:none;border:none;color:#999;font-size:12px;cursor:pointer;text-decoration:underline;">Ahora no, preguntarme más tarde</button>
     </div>
   </div>
 
@@ -689,6 +709,7 @@ async function showApp() {
     actualizarSaldoBadge();
     actualizarOficinaBadge();
     mostrarMainApp();
+    if (!userStatus.oficina_municipio) mostrarModalOficina();
   } catch(e) {
     console.warn("Error verificando acceso:", e.message);
     mostrarMainApp();
@@ -1624,12 +1645,12 @@ async function cargarMiCuenta() {
   }catch(e){uso.innerHTML="<span style='color:#c00;'>❌ Error al cargar: "+e.message+"</span>";}
 }
 
-async function guardarOficina() {
-  if (!currentUser) return;
-  var input = document.getElementById("oficinaMunicipioInput");
-  var status = document.getElementById("oficina-status");
-  var municipio = (input.value || "").trim();
-  status.innerHTML = "<span style='color:#888;'>⏳ Buscando en la tabla DICIREG…</span>";
+// Lógica compartida entre el campo del panel "Mi cuenta" y el modal que se
+// muestra tras el login si el usuario aún no tiene oficina configurada.
+// Ambos llaman a esto pasándole su propio <input> y su propio elemento de
+// estado; solo cambia dónde se pinta el resultado.
+async function _guardarOficinaEnDestino(municipio, statusEl) {
+  statusEl.innerHTML = "<span style='color:#888;'>⏳ Buscando en la tabla DICIREG…</span>";
   try {
     var d = await proxyFetch({ action: "actualizarOficina", email: currentUser.email, municipio: municipio });
     if (d.error) throw new Error(d.error);
@@ -1641,17 +1662,48 @@ async function guardarOficina() {
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     actualizarOficinaBadge();
     if (d.resuelto) {
-      status.innerHTML = "<strong>"+d.municipio+"</strong> — partido judicial de "+d.partido_judicial+"<br>DICIREG (Ley 20/2011) desde el "+d.fecha_dicireg;
+      statusEl.innerHTML = "<strong>"+d.municipio+"</strong> — partido judicial de "+d.partido_judicial+"<br>DICIREG (Ley 20/2011) desde el "+d.fecha_dicireg;
       showCopyToast("✅ Oficina guardada");
     } else if (!municipio) {
-      status.innerHTML = "<span style='color:#888;'>Sin oficina configurada.</span>";
+      statusEl.innerHTML = "<span style='color:#888;'>Sin oficina configurada.</span>";
       showCopyToast("Oficina eliminada del perfil");
     } else {
-      status.innerHTML = "<span style='color:#c62828;'>"+(d.msg||"No se ha encontrado ese municipio.")+"</span>";
+      statusEl.innerHTML = "<span style='color:#c62828;'>"+(d.msg||"No se ha encontrado ese municipio.")+"</span>";
     }
+    return d;
   } catch(e) {
-    status.innerHTML = "<span style='color:#c00;'>❌ "+e.message+"</span>";
+    statusEl.innerHTML = "<span style='color:#c00;'>❌ "+e.message+"</span>";
+    return null;
   }
+}
+
+async function guardarOficina() {
+  if (!currentUser) return;
+  var input = document.getElementById("oficinaMunicipioInput");
+  await _guardarOficinaEnDestino((input.value || "").trim(), document.getElementById("oficina-status"));
+}
+
+// ── Modal de oficina tras el login (solo si aún no consta en el perfil) ──
+function mostrarModalOficina() {
+  if (currentUser && currentUser.email === ADMIN_EMAIL) return;
+  document.getElementById("oficinaModalStatus").innerHTML = "";
+  document.getElementById("oficinaModalInput").value = "";
+  document.getElementById("oficinaOverlay").style.display = "flex";
+  setTimeout(function(){ document.getElementById("oficinaModalInput").focus(); }, 50);
+}
+
+function cerrarModalOficina() {
+  document.getElementById("oficinaOverlay").style.display = "none";
+}
+
+async function guardarOficinaModal() {
+  if (!currentUser) return;
+  var input  = document.getElementById("oficinaModalInput");
+  var status = document.getElementById("oficinaModalStatus");
+  var municipio = (input.value || "").trim();
+  if (!municipio) { status.innerHTML = "<span style='color:#c62828;'>Escribe el nombre de tu municipio.</span>"; return; }
+  var d = await _guardarOficinaEnDestino(municipio, status);
+  if (d && d.resuelto) setTimeout(cerrarModalOficina, 1400);
 }
 
 // =====================================================================
