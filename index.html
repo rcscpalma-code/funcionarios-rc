@@ -251,6 +251,7 @@
       <img id="userAvatar" src="" alt=""/>
       <span id="userName"></span>
       <span id="saldoBadge" class="saldo-badge" style="display:none"></span>
+      <span id="oficinaBadge" class="saldo-badge" style="display:none;background:#e3f2fd;color:#1565c0;" title="Oficina de Registro Civil configurada en tu perfil"></span>
       <button id="btnColaborar" class="btn-colaborar" style="display:none" onclick="mostrarModalColaborar()">💚 Colaborar</button>
       <div id="usageBadgeWrap" style="display:none;flex-direction:column;align-items:flex-end;line-height:1.35;gap:2px;">
         <span id="lastCostBadge" style="font-size:10px;color:#999;"></span>
@@ -405,6 +406,18 @@
         <div class="admin-card">
           <h3>📋 Datos de acceso</h3>
           <div id="micuenta-info" style="font-size:13px;color:#555;line-height:1.8;"></div>
+        </div>
+        <div class="admin-card">
+          <h3>📍 Mi oficina de Registro Civil</h3>
+          <p style="font-size:12px;color:#888;margin-bottom:10px;">
+            Indica el municipio de tu oficina para que el asistente sepa, sin tener que preguntártelo
+            cada vez, desde cuándo se aplica la Ley 20/2011 (DICIREG) en tu partido judicial.
+          </p>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <input id="oficinaMunicipioInput" type="text" placeholder="Ej: Garafía" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;">
+            <button class="btn-success" style="font-size:13px;padding:8px 14px;" onclick="guardarOficina()">Guardar</button>
+          </div>
+          <div id="oficina-status" style="font-size:12px;color:#555;line-height:1.6;"></div>
         </div>
         <div class="admin-card">
           <h3>📊 Mi uso</h3>
@@ -650,12 +663,16 @@ async function showApp() {
       mensajes_limite: acceso.mensajes_limite || 3,
       credito_euros:   acceso.credito_euros || 0,
       credito_gastado: acceso.credito_gastado || 0,
-      saldo_restante:  acceso.saldo_restante || 0
+      saldo_restante:  acceso.saldo_restante || 0,
+      oficina_municipio:        acceso.oficina_municipio || "",
+      oficina_partido_judicial: acceso.oficina_partido_judicial || "",
+      oficina_fecha_dicireg:    acceso.oficina_fecha_dicireg || ""
     };
     var session = JSON.parse(localStorage.getItem(SESSION_KEY) || "{}");
     session.userStatus = userStatus;
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     actualizarSaldoBadge();
+    actualizarOficinaBadge();
     mostrarMainApp();
   } catch(e) {
     console.warn("Error verificando acceso:", e.message);
@@ -751,6 +768,15 @@ function actualizarSaldoBadge() {
   else if (userStatus.categoria === "vip") { badge.textContent = "⭐ VIP"; }
   else if (userStatus.categoria === "bloqueado") { badge.textContent = "🚫 Bloqueado"; }
   btnColaborar.style.display = (userStatus.categoria === "cortesia" || userStatus.categoria === "colaborador") ? "inline-block" : "none";
+}
+
+function actualizarOficinaBadge() {
+  var badge = document.getElementById("oficinaBadge");
+  if (!badge) return;
+  if (!userStatus.oficina_municipio || currentUser.email === ADMIN_EMAIL) { badge.style.display = "none"; return; }
+  var ley = userStatus.oficina_fecha_dicireg ? "LRC'2011" : "";
+  badge.textContent = "📍 " + userStatus.oficina_municipio + (userStatus.oficina_fecha_dicireg ? " · " + ley + " desde " + userStatus.oficina_fecha_dicireg : "");
+  badge.style.display = "inline-block";
 }
 
 function logout() {
@@ -1528,11 +1554,49 @@ async function cargarMiCuenta() {
   else if(userStatus.categoria==="colaborador"){saldoLinea="<br><strong>Saldo disponible:</strong> "+(userStatus.saldo_restante||0).toFixed(2)+" €<br><strong>Crédito total:</strong> "+(userStatus.credito_euros||0).toFixed(2)+" €";}
   else if(userStatus.categoria==="vip"){saldoLinea="<br><strong>Acceso:</strong> ilimitado";}
   info.innerHTML="<strong>Nombre:</strong> "+currentUser.name+"<br><strong>Email:</strong> "+currentUser.email+"<br><strong>Categoría:</strong> "+(catLabel[userStatus.categoria]||userStatus.categoria)+saldoLinea;
+  var oficinaInput = document.getElementById("oficinaMunicipioInput");
+  if (oficinaInput && document.activeElement !== oficinaInput) oficinaInput.value = userStatus.oficina_municipio || "";
+  var oficinaStatus = document.getElementById("oficina-status");
+  if (oficinaStatus) {
+    oficinaStatus.innerHTML = userStatus.oficina_fecha_dicireg
+      ? "<strong>"+userStatus.oficina_municipio+"</strong>"+(userStatus.oficina_partido_judicial?" — partido judicial de "+userStatus.oficina_partido_judicial:"")+"<br>DICIREG (Ley 20/2011) desde el "+userStatus.oficina_fecha_dicireg
+      : (userStatus.oficina_municipio ? "<span style='color:#c62828;'>\""+userStatus.oficina_municipio+"\" no se ha encontrado en la tabla DICIREG. Revisa la ortografía.</span>" : "<span style='color:#888;'>Sin oficina configurada todavía.</span>");
+  }
   uso.innerHTML="<span style='color:#888;'>⏳ Cargando…</span>";
   try{
     var d=await proxyFetch({action:"miConsumo",email:currentUser.email}); if(d.error)throw new Error(d.error);
     uso.innerHTML="<strong>Consultas realizadas:</strong> "+d.consultas+"<br><strong>Coste acumulado:</strong> "+d.coste+" €";
   }catch(e){uso.innerHTML="<span style='color:#c00;'>❌ Error al cargar: "+e.message+"</span>";}
+}
+
+async function guardarOficina() {
+  if (!currentUser) return;
+  var input = document.getElementById("oficinaMunicipioInput");
+  var status = document.getElementById("oficina-status");
+  var municipio = (input.value || "").trim();
+  status.innerHTML = "<span style='color:#888;'>⏳ Buscando en la tabla DICIREG…</span>";
+  try {
+    var d = await proxyFetch({ action: "actualizarOficina", email: currentUser.email, municipio: municipio });
+    if (d.error) throw new Error(d.error);
+    userStatus.oficina_municipio        = d.municipio || municipio || "";
+    userStatus.oficina_partido_judicial = d.partido_judicial || "";
+    userStatus.oficina_fecha_dicireg    = d.fecha_dicireg || "";
+    var session = JSON.parse(localStorage.getItem(SESSION_KEY) || "{}");
+    session.userStatus = userStatus;
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    actualizarOficinaBadge();
+    if (d.resuelto) {
+      status.innerHTML = "<strong>"+d.municipio+"</strong> — partido judicial de "+d.partido_judicial+"<br>DICIREG (Ley 20/2011) desde el "+d.fecha_dicireg;
+      showCopyToast("✅ Oficina guardada");
+    } else if (!municipio) {
+      status.innerHTML = "<span style='color:#888;'>Sin oficina configurada.</span>";
+      showCopyToast("Oficina eliminada del perfil");
+    } else {
+      status.innerHTML = "<span style='color:#c62828;'>"+(d.msg||"No se ha encontrado ese municipio.")+"</span>";
+    }
+  } catch(e) {
+    status.innerHTML = "<span style='color:#c00;'>❌ "+e.message+"</span>";
+  }
 }
 
 // =====================================================================
