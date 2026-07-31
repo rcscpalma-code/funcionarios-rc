@@ -513,6 +513,12 @@
             <div id="limpiarStatus"></div>
           </div>
           <div class="admin-card">
+            <h3>💾 Backup del proyecto</h3>
+            <p>Descarga en un ZIP las hojas de usuarios, criterios, legislación, procedimientos y gastos (no incluye las hojas de resoluciones, que ya están versionadas en el propio Sheet).</p>
+            <button class="btn-primary" onclick="generarBackupProyecto()" id="backupBtn">💾 Generar backup ahora</button>
+            <div id="backupStatus"></div>
+          </div>
+          <div class="admin-card">
             <h3>⚡ Estadísticas de caché</h3>
             <button class="btn-primary" onclick="loadCacheStats()">Ver estadísticas</button>
             <div id="cacheStats" style="margin-top:8px;font-size:13px;color:#555;"></div>
@@ -1549,6 +1555,16 @@ async function limpiarIndice() {
   btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Verificando archivos…</div>";
   try{ var d=await proxyFetch({action:"limpiarIndice"}); if(d.error) throw new Error(d.error); status.innerHTML=d.eliminados>0?"<div class='status-msg status-ok'>✅ Eliminadas "+d.eliminados+" entradas.</div>":"<div class='status-msg status-ok'>✅ El índice está limpio.</div>"; }
   catch(e){ status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>"; }
+  btn.disabled=false;
+}
+async function generarBackupProyecto() {
+  var btn=document.getElementById("backupBtn"),status=document.getElementById("backupStatus");
+  btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Generando backup…</div>";
+  try{
+    var d=await proxyFetch({action:"generarBackupProyecto", email: currentUser.email});
+    if(d.error) throw new Error(d.error);
+    status.innerHTML="<div class='status-msg status-ok'>✅ Backup generado (\""+d.nombre+"\", "+d.hojas+" hojas). <a href='"+d.url+"' target='_blank'>Abrir en Drive</a></div>";
+  } catch(e){ status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>"; }
   btn.disabled=false;
 }
 async function runIndex() {
