@@ -490,6 +490,18 @@
               <div id="folderBreadcrumb" style="font-size:12px;color:#185FA5;margin-bottom:6px;"></div>
               <div id="folderList" style="border:1px solid #e0e0e0;border-radius:8px;background:#fff;max-height:180px;overflow-y:auto;"></div>
             </div>
+            <div style="margin-bottom:10px;">
+              <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">Tipo de documento:</label>
+              <select id="tipoDocumentoSelect" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;">
+                <option value="">— Sin especificar —</option>
+                <option value="Resolución">Resolución</option>
+                <option value="Instrucción/Circular">Instrucción / Circular</option>
+                <option value="Procedimiento">Procedimiento</option>
+                <option value="Legislación">Legislación</option>
+                <option value="Convenio">Convenio</option>
+                <option value="Otro">Otro</option>
+              </select>
+            </div>
             <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.odt" style="margin-bottom:10px;font-size:13px;"/><br>
             <button class="btn-primary" onclick="subirArchivo()" id="subirBtn">⬆️ Subir archivo</button>
             <div id="subirStatus"></div>
@@ -1510,16 +1522,19 @@ function selectFolder(id,name){ selectedFolderId=id; document.getElementById("su
 
 async function subirArchivo() {
   var fileInput=document.getElementById("fileInput"), status=document.getElementById("subirStatus"), btn=document.getElementById("subirBtn");
+  var tipoSelect=document.getElementById("tipoDocumentoSelect");
   if(!fileInput.files.length){status.innerHTML="<div class='status-msg status-err'>❌ Selecciona un archivo primero.</div>";return;}
   if(!selectedFolderId){status.innerHTML="<div class='status-msg status-err'>❌ Selecciona una carpeta de destino primero.</div>";return;}
   var file=fileInput.files[0]; btn.disabled=true;
   status.innerHTML="<div class='status-msg status-info'>⏳ Subiendo «"+file.name+"»…</div>";
   try {
     var base64=await new Promise(function(res,rej){var r=new FileReader();r.onload=function(e){res(e.target.result.split(",")[1]);};r.onerror=rej;r.readAsDataURL(file);});
-    var d=await proxyFetch({action:"subirArchivo",nombre:file.name,mimeType:file.type,base64:base64,folderId:selectedFolderId});
+    var d=await proxyFetch({action:"subirArchivo",nombre:file.name,mimeType:file.type,base64:base64,folderId:selectedFolderId,tipo:tipoSelect?tipoSelect.value:""});
     if(d.error) throw new Error(d.error);
-    status.innerHTML="<div class='status-msg status-ok'>✅ «"+d.nombre+"» subido correctamente en 📁 "+d.carpeta+".</div>";
+    var tipoTxt = d.tipo ? " · tipo: "+escapeHtml(d.tipo) : "";
+    status.innerHTML="<div class='status-msg status-ok'>✅ «"+d.nombre+"» subido correctamente en 📁 "+d.carpeta+tipoTxt+".</div>";
     fileInput.value="";
+    if (tipoSelect) tipoSelect.value = "";
   } catch(e){status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>";}
   btn.disabled=false;
 }
