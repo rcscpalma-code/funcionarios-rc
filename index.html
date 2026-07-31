@@ -589,8 +589,17 @@
         <!-- Tab Errores -->
         <div id="tab-errores" style="display:none;">
           <div class="admin-card">
-            <h3>⚠️ Respuestas reportadas por usuarios</h3>
-            <button class="btn-primary" onclick="loadErrores()" style="margin-bottom:12px;">🔄 Actualizar</button>
+            <h3>⚠️ Consultas</h3>
+            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+              <button id="btnErroresReportadas" class="mode-btn active" onclick="cambiarVistaErrores('reportadas')">⚠️ Reportadas por usuarios</button>
+              <button id="btnErroresTodas" class="mode-btn" onclick="cambiarVistaErrores('todas')">🔍 Buscar en todas las consultas</button>
+            </div>
+            <div id="buscarHistorialControles" style="display:none;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+              <input id="buscarHistorialTexto" type="text" placeholder="Buscar por texto en la pregunta o la respuesta…" style="flex:2;min-width:220px;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;" onkeydown="if(event.key==='Enter') buscarHistorialAdmin()">
+              <input id="buscarHistorialEmail" type="text" placeholder="Filtrar por email (opcional)" style="flex:1;min-width:160px;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;" onkeydown="if(event.key==='Enter') buscarHistorialAdmin()">
+              <button class="btn-primary" onclick="buscarHistorialAdmin()">Buscar</button>
+            </div>
+            <button class="btn-primary" onclick="actualizarVistaErrores()" style="margin-bottom:12px;">🔄 Actualizar</button>
             <div id="erroresStatus" style="font-size:13px;color:#888;margin-bottom:8px;"></div>
             <div id="erroresLista"></div>
           </div>
@@ -1715,6 +1724,74 @@ async function guardarOficinaModal() {
 // por TODO el bloque de abajo (loadErrores + verDetalleError + revisarErrorIdx + confirmarErrorIdx)
 // =====================================================================
 
+// Renderizado compartido entre las dos vistas de esta pestaña: "reportadas"
+// (getErrores, solo lo que el propio usuario marcó como incorrecto) y
+// "todas" (buscarHistorialAdmin, cualquier consulta del historial). Las dos
+// devuelven entradas con la misma forma, así que el detalle y los botones
+// de confirmar/marcar-correcta (verDetalleError/revisarErrorIdx/
+// confirmarErrorIdx) funcionan igual sin importar de dónde vino la lista.
+function renderListaConsultas(entradas) {
+  erroresCache = entradas;
+  return entradas.map(function(e, eIdx) {
+    var fechaStr = e.fecha ? new Date(e.fecha).toLocaleString("es-ES") : "";
+    var pregCorta = e.pregunta.length > 120 ? e.pregunta.substring(0,120) + "…" : e.pregunta;
+    var notaCorta = e.nota ? (e.nota.length > 60 ? e.nota.substring(0,60) + "…" : e.nota) : "";
+    var badgeRevision = e.revision === "CONFIRMADO"
+      ? "<div style='font-size:11px;background:#ffebee;color:#c62828;padding:2px 8px;border-radius:10px;white-space:nowrap;'>❌ Error confirmado</div>"
+      : (e.revision === "CORRECTO"
+          ? "<div style='font-size:11px;background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;white-space:nowrap;'>✅ Ya revisada</div>"
+          : "");
+    return "<div onclick='verDetalleError("+eIdx+")' style='background:#fff8f8;border:1px solid #ffcdd2;border-radius:9px;padding:14px;margin-bottom:10px;cursor:pointer;transition:box-shadow 0.15s;' onmouseover='this.style.boxShadow=\"0 2px 8px rgba(198,40,40,0.15)\"' onmouseout='this.style.boxShadow=\"none\"'>" +
+      "<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:8px;'>" +
+      "<div style='font-size:11px;color:#aaa;'>📅 " + fechaStr + " · 👤 " + escapeHtml(e.nombre||e.email) + "</div>" +
+      (notaCorta ? "<div style='font-size:11px;background:#ffebee;color:#c62828;padding:2px 8px;border-radius:10px;max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>⚠️ " + notaCorta + "</div>" : badgeRevision) +
+      "</div>" +
+      "<div style='font-size:13px;color:#185FA5;font-weight:500;'>" + pregCorta.replace(/</g,"&lt;") + "</div>" +
+      "<div style='font-size:11px;color:#999;margin-top:4px;'>Haz clic para ver el detalle completo →</div>" +
+      "</div>";
+  }).join("");
+}
+
+var vistaErroresActual = "reportadas";
+
+function cambiarVistaErrores(vista) {
+  vistaErroresActual = vista;
+  document.getElementById("btnErroresReportadas").classList.toggle("active", vista === "reportadas");
+  document.getElementById("btnErroresTodas").classList.toggle("active", vista === "todas");
+  document.getElementById("buscarHistorialControles").style.display = vista === "todas" ? "flex" : "none";
+  document.getElementById("erroresLista").innerHTML = "";
+  document.getElementById("erroresStatus").textContent = "";
+  if (vista === "reportadas") loadErrores();
+}
+
+function actualizarVistaErrores() {
+  if (vistaErroresActual === "todas") buscarHistorialAdmin();
+  else loadErrores();
+}
+
+async function buscarHistorialAdmin() {
+  var status = document.getElementById("erroresStatus");
+  var lista   = document.getElementById("erroresLista");
+  var texto       = document.getElementById("buscarHistorialTexto").value.trim();
+  var filtroEmail = document.getElementById("buscarHistorialEmail").value.trim();
+  status.textContent = "⏳ Buscando…";
+  lista.innerHTML = "";
+  try {
+    var d = await proxyFetch({ action:"buscarHistorialAdmin", email:currentUser.email, texto:texto, filtroEmail:filtroEmail, limite:150 });
+    if (d.error) throw new Error(d.error);
+    status.textContent = d.mostrando + " de " + d.total + " consulta" + (d.total!==1?"s":"") +
+      (d.total > d.mostrando ? " — afina la búsqueda para ver el resto" : "");
+    if (!d.entradas.length) {
+      lista.innerHTML = "<div style='color:#888;font-size:13px;padding:16px 0;'>Sin resultados. Prueba con menos texto o sin filtro de email.</div>";
+      erroresCache = [];
+      return;
+    }
+    lista.innerHTML = renderListaConsultas(d.entradas);
+  } catch(e) {
+    status.textContent = "❌ Error: " + e.message;
+  }
+}
+
 async function loadErrores() {
   var status = document.getElementById("erroresStatus");
   var lista   = document.getElementById("erroresLista");
@@ -1726,22 +1803,10 @@ async function loadErrores() {
     status.textContent = d.total + " respuesta" + (d.total!==1?"s":"") + " reportada" + (d.total!==1?"s":"");
     if (!d.errores.length) {
       lista.innerHTML = "<div style='color:#888;font-size:13px;padding:16px 0;'>No hay respuestas reportadas.</div>";
+      erroresCache = [];
       return;
     }
-    erroresCache = d.errores;
-    lista.innerHTML = d.errores.map(function(e, eIdx) {
-      var fechaStr = e.fecha ? new Date(e.fecha).toLocaleString("es-ES") : "";
-      var pregCorta = e.pregunta.length > 120 ? e.pregunta.substring(0,120) + "…" : e.pregunta;
-      var notaCorta = e.nota ? (e.nota.length > 60 ? e.nota.substring(0,60) + "…" : e.nota) : "";
-      return "<div onclick='verDetalleError("+eIdx+")' style='background:#fff8f8;border:1px solid #ffcdd2;border-radius:9px;padding:14px;margin-bottom:10px;cursor:pointer;transition:box-shadow 0.15s;' onmouseover='this.style.boxShadow=\"0 2px 8px rgba(198,40,40,0.15)\"' onmouseout='this.style.boxShadow=\"none\"'>" +
-        "<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;'>" +
-        "<div style='font-size:11px;color:#aaa;'>📅 " + fechaStr + " · 👤 " + escapeHtml(e.nombre||e.email) + "</div>" +
-        (notaCorta ? "<div style='font-size:11px;background:#ffebee;color:#c62828;padding:2px 8px;border-radius:10px;max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>⚠️ " + notaCorta + "</div>" : "") +
-        "</div>" +
-        "<div style='font-size:13px;color:#185FA5;font-weight:500;'>" + pregCorta.replace(/</g,"&lt;") + "</div>" +
-        "<div style='font-size:11px;color:#999;margin-top:4px;'>Haz clic para ver el detalle completo →</div>" +
-        "</div>";
-    }).join("");
+    lista.innerHTML = renderListaConsultas(d.errores);
   } catch(e) {
     status.textContent = "❌ Error: " + e.message;
   }
