@@ -883,7 +883,49 @@ async function proxyFetchIntento(params, signal) {
   return r.json();
 }
 
-async function proxyFetch(params, signal) {
+// Dos causas de fallo transitorio, dos calendarios de espera distintos
+// (pendiente #4 del CLAUDE.md). No es la misma situación: sin red, esperar
+// poco tiene sentido porque suele ser un corte momentáneo; ante un límite de
+// consultas, esperar poco es contraproducente porque el límite tarda minutos
+// en liberarse, así que hay que dar más margen.
+var REINTENTOS_RED         = [3000, 6000, 12000];   // "Failed to fetch" — sin respuesta del servidor
+var REINTENTOS_RATE_LIMIT  = [15000, 30000, 60000]; // límite de consultas — propio o de Anthropic
+
+// El backend nunca devuelve un HTTP 429 real (Apps Script Web Apps siempre
+// responden 200); un límite de consultas llega como {error:"..."} dentro de
+// un JSON perfectamente válido. Hay que reconocerlo por el texto del
+// mensaje, no por el código de estado.
+function esErrorDeLimite(mensaje) {
+  if (!mensaje) return false;
+  var m = String(mensaje).toLowerCase();
+  return m.indexOf("demasiadas consultas") !== -1 ||
+         m.indexOf("límite diario") !== -1 || m.indexOf("limite diario") !== -1 ||
+         m.indexOf("rate_limit") !== -1 || m.indexOf("rate limit") !== -1 ||
+         m.indexOf("overloaded") !== -1 || m.indexOf("429") !== -1;
+}
+
+// Como setTimeout no conoce el AbortSignal, sin esto una cancelación pedida
+// justo durante la espera de un reintento se quedaría bloqueada hasta que
+// termine el temporizador entero (hasta 60s) antes de notar que ya no hace
+// falta seguir. Con esto, corta la espera en el momento en que se cancela.
+function esperaCancelable(ms, signal) {
+  return new Promise(function(resolve, reject) {
+    var t = setTimeout(resolve, ms);
+    if (signal) {
+      signal.addEventListener("abort", function() {
+        clearTimeout(t);
+        reject(new DOMException("Aborted", "AbortError"));
+      }, { once: true });
+    }
+  });
+}
+
+// onReintento(tipo, esperaMs, intento, totalIntentos) es opcional — si se
+// pasa, se llama antes de cada espera para que la pantalla pueda avisar
+// "reintentando en 15s…" en vez de quedarse callada. Sin callback, el
+// reintento sigue ocurriendo igual, solo que en silencio (vale para
+// acciones de admin/config donde no hace falta narrar cada intento).
+async function proxyFetch(params, signal, onReintento) {
   // El backend nunca confía en el email que mande el cliente: adjuntamos
   // siempre el ID token real de la sesión de Google para que lo verifique
   // contra los servidores de Google antes de resolver la identidad de quien
@@ -891,18 +933,26 @@ async function proxyFetch(params, signal) {
   // administrador) con solo conocer su email.
   if (currentUser && currentUser.idToken) params = Object.assign({ id_token: currentUser.idToken }, params);
 
-  // Las respuestas de chat con documentos pueden tardar 30-45s (lectura de
-  // PDFs + contexto grande a Claude); a veces la conexión se corta antes de
-  // llegar respuesta y fetch() lanza un error de red genérico ("Failed to
-  // fetch"), no un error de la aplicación. En ese caso concreto (no si el
-  // usuario canceló, ni si la petición sí llegó pero devolvió un error de
-  // negocio) se reintenta una vez tras una breve espera.
-  try {
-    return await proxyFetchIntento(params, signal);
-  } catch (e) {
-    if (e.name === "AbortError") throw e;
-    await new Promise(function(res){ setTimeout(res, 2000); });
-    return await proxyFetchIntento(params, signal);
+  var intentosRed = 0, intentosLimite = 0;
+  while (true) {
+    var resultado;
+    try {
+      resultado = await proxyFetchIntento(params, signal);
+    } catch (e) {
+      if (e.name === "AbortError") throw e;
+      if (intentosRed >= REINTENTOS_RED.length) throw e;
+      var esperaRed = REINTENTOS_RED[intentosRed++];
+      if (onReintento) onReintento("red", esperaRed, intentosRed, REINTENTOS_RED.length);
+      await esperaCancelable(esperaRed, signal);
+      continue;
+    }
+    if (resultado && resultado.error && esErrorDeLimite(resultado.error) && intentosLimite < REINTENTOS_RATE_LIMIT.length) {
+      var esperaLimite = REINTENTOS_RATE_LIMIT[intentosLimite++];
+      if (onReintento) onReintento("limite", esperaLimite, intentosLimite, REINTENTOS_RATE_LIMIT.length);
+      await esperaCancelable(esperaLimite, signal);
+      continue;
+    }
+    return resultado;
   }
 }
 
@@ -1276,6 +1326,11 @@ function renderMarkdown(text) {
 }
 
 // ── MENSAJES ─────────────────────────────────────────────────────────
+// Se rellena mientras proxyFetch está reintentando una llamada de chat, para
+// que el usuario vea el motivo de la espera en vez de puntos suspensivos sin
+// explicación. Vacío en cualquier otro momento.
+var chatRetryStatus = "";
+
 function renderMessages() {
   var el = document.getElementById("messages");
   el.innerHTML = messages.map(function(m){
@@ -1296,7 +1351,8 @@ function renderMessages() {
       (m.role==="assistant"?"<div class='avatar'>⚖️</div>":"") +
       "<div>"+bubbleContent+(m.docsUsados?"<div class='docs-used'>📚 "+renderMarkdown(m.docsUsados)+docsExtraBtn+"</div>":"")+"</div></div>";
   }).join("");
-  if (loading) el.innerHTML += "<div class='typing'><div class='avatar'>⚖️</div><div class='dots'><div class='dot'></div><div class='dot'></div><div class='dot'></div></div></div>";
+  if (loading) el.innerHTML += "<div class='typing'><div class='avatar'>⚖️</div><div class='dots'><div class='dot'></div><div class='dot'></div><div class='dot'></div></div>" +
+    (chatRetryStatus ? "<div style='font-size:11px;color:#e65100;margin-left:8px;align-self:center;'>"+escapeHtml(chatRetryStatus)+"</div>" : "") + "</div>";
   el.scrollTop = el.scrollHeight;
 }
 
@@ -1312,7 +1368,18 @@ function nuevaConversacion() {
 
 async function callBridge(msgs, signal) {
   var cleanMsgs = msgs.map(function(m){ return { role:m.role, content:m.content }; });
-  var d = await proxyFetch({ action:"chat", messages:JSON.stringify(cleanMsgs), docIds:JSON.stringify(selectedDocs), email:currentUser?currentUser.email:"anónimo", nombre:currentUser?currentUser.name:"Usuario" }, signal);
+  var onReintento = function(tipo, esperaMs, intento, total) {
+    var segundos = Math.round(esperaMs/1000);
+    chatRetryStatus = tipo === "limite"
+      ? "Límite de consultas alcanzado, reintentando en " + segundos + "s (" + intento + "/" + total + ")…"
+      : "Sin respuesta del servidor, reintentando en " + segundos + "s (" + intento + "/" + total + ")…";
+    renderMessages();
+  };
+  try {
+    var d = await proxyFetch({ action:"chat", messages:JSON.stringify(cleanMsgs), docIds:JSON.stringify(selectedDocs), email:currentUser?currentUser.email:"anónimo", nombre:currentUser?currentUser.name:"Usuario" }, signal, onReintento);
+  } finally {
+    chatRetryStatus = "";
+  }
   if (d.error) throw new Error(d.error);
   return d;
 }
