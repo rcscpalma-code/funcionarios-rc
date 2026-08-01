@@ -247,17 +247,19 @@
       <h1>Funcionarios RC</h1>
       <p>Asistente de Registro Civil</p>
     </div>
-    <div id="userBadge" style="display:none" class="user-badge">
-      <img id="userAvatar" src="" alt=""/>
-      <span id="userName"></span>
-      <span id="saldoBadge" class="saldo-badge" style="display:none"></span>
-      <button id="btnColaborar" class="btn-colaborar" style="display:none" onclick="mostrarModalColaborar()">💚 Colaborar</button>
-      <div id="usageBadgeWrap" style="display:none;flex-direction:column;align-items:flex-end;line-height:1.35;gap:2px;">
-        <span id="lastCostBadge" style="font-size:10px;color:#999;"></span>
-        <span id="myUsageBadge" class="my-usage"></span>
+    <div id="headerRight" style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+      <div id="userBadge" style="display:none" class="user-badge">
+        <img id="userAvatar" src="" alt=""/>
+        <span id="userName"></span>
+        <span id="saldoBadge" class="saldo-badge" style="display:none"></span>
+        <button id="btnColaborar" class="btn-colaborar" style="display:none" onclick="mostrarModalColaborar()">💚 Colaborar</button>
+        <div id="usageBadgeWrap" style="display:none;flex-direction:column;align-items:flex-end;line-height:1.35;gap:2px;">
+          <span id="lastCostBadge" style="font-size:10px;color:#999;"></span>
+          <span id="myUsageBadge" class="my-usage"></span>
+        </div>
+        <button class="logout-btn" onclick="logout()">Salir</button>
       </div>
-      <button class="logout-btn" onclick="logout()">Salir</button>
-      <span id="oficinaBadge" class="saldo-badge" style="display:none;background:#e3f2fd;color:#1565c0;flex-basis:100%;margin-top:2px;margin-left:auto;text-align:right;cursor:pointer;" title="Oficina de Registro Civil configurada en tu perfil — pulsa para editarla" onclick="setMode('micuenta')"></span>
+      <span id="oficinaBadge" class="saldo-badge" style="display:none;background:#e3f2fd;color:#1565c0;cursor:pointer;" title="Oficina de Registro Civil configurada en tu perfil — pulsa para editarla" onclick="setMode('micuenta')"></span>
     </div>
   </div>
 
