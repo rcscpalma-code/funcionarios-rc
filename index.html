@@ -257,7 +257,7 @@
         <span id="myUsageBadge" class="my-usage"></span>
       </div>
       <button class="logout-btn" onclick="logout()">Salir</button>
-      <span id="oficinaBadge" class="saldo-badge" style="display:none;background:#e3f2fd;color:#1565c0;flex-basis:100%;margin-top:2px;cursor:pointer;" title="Oficina de Registro Civil configurada en tu perfil — pulsa para editarla" onclick="setMode('micuenta')"></span>
+      <span id="oficinaBadge" class="saldo-badge" style="display:none;background:#e3f2fd;color:#1565c0;flex-basis:100%;margin-top:2px;margin-left:auto;text-align:right;cursor:pointer;" title="Oficina de Registro Civil configurada en tu perfil — pulsa para editarla" onclick="setMode('micuenta')"></span>
     </div>
   </div>
 
@@ -850,12 +850,18 @@ function actualizarSaldoBadge() {
   btnColaborar.style.display = (userStatus.categoria === "cortesia" || userStatus.categoria === "colaborador") ? "inline-block" : "none";
 }
 
+function _formatearFechaDicireg(fecha) {
+  if (!fecha) return "";
+  var soloFecha = String(fecha).split("T")[0]; // "2024-09-15T23:00:00.000Z" -> "2024-09-15"
+  var partes = soloFecha.split("-");
+  return partes.length === 3 ? partes[2] + "/" + partes[1] + "/" + partes[0] : soloFecha;
+}
 function actualizarOficinaBadge() {
   var badge = document.getElementById("oficinaBadge");
   if (!badge) return;
   if (!userStatus.oficina_municipio || currentUser.email === ADMIN_EMAIL) { badge.style.display = "none"; return; }
-  var ley = userStatus.oficina_fecha_dicireg ? "LRC'2011" : "";
-  badge.textContent = "📍 " + userStatus.oficina_municipio + (userStatus.oficina_fecha_dicireg ? " · " + ley + " desde " + userStatus.oficina_fecha_dicireg : "");
+  var fecha = _formatearFechaDicireg(userStatus.oficina_fecha_dicireg);
+  badge.textContent = userStatus.oficina_municipio + (fecha ? " · LRC'2011 desde " + fecha : "");
   badge.style.display = "inline-block";
 }
 
