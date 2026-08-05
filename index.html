@@ -890,7 +890,14 @@ async function proxyFetchIntento(params, signal) {
   // provoca un "Failed to fetch" silencioso.
   var qs = new URLSearchParams(params).toString();
   var LIMITE_URL = 1800;
-  if (params.base64 || (BRIDGE_URL.length + 1 + qs.length) > LIMITE_URL) {
+  // "chat" siempre va por POST, incluso en el primer mensaje corto: el
+  // historial crece en cada turno y depender del cálculo de longitud aquí
+  // significa que una conversación puede cruzar el umbral a mitad de hilo
+  // (o quedar justo por debajo y toparse con un límite más estricto de
+  // algún proxy/red intermedia), lo que se observó como un "Acción no
+  // reconocida" -- la querystring se truncaba y el propio parámetro
+  // "action" llegaba incompleto o corrupto al backend.
+  if (params.base64 || params.action === "chat" || (BRIDGE_URL.length + 1 + qs.length) > LIMITE_URL) {
     // "Content-Type: application/json" obliga al navegador a hacer un preflight
     // OPTIONS antes del POST (no es un tipo "simple" de CORS). Los Web Apps de
     // Apps Script no responden correctamente a ese preflight, así que el POST
