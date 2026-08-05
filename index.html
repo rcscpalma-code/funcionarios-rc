@@ -61,8 +61,12 @@
       doCopy(stripMarkdownWithDocs(m.content, m.docsUsados));
     }
     function copyAll() {
-      if (!messages.length) { showCopyToast("❌ El chat está vacío"); return; }
-      var text = messages.map(function(m){
+      // messages[0] es siempre el saludo de bienvenida (ver nuevaConversacion()
+      // y el arranque de sesión), nunca una respuesta real -- se omite igual
+      // que ya se omitía del botón "Reportar error" por burbuja.
+      var msgsReales = messages.slice(1);
+      if (!msgsReales.length) { showCopyToast("❌ El chat está vacío"); return; }
+      var text = msgsReales.map(function(m){
         var prefix = m.role==="user"?"👤 Consulta":"⚖️ Respuesta";
         var content = m.role==="assistant"
           ? stripMarkdownWithDocs(m.content, m.docsUsados)
@@ -72,8 +76,11 @@
       doCopy(text);
     }
     function printChat() {
-      if (!messages.length) { showCopyToast("❌ El chat está vacío"); return; }
-      var content = messages.map(function(m){
+      // messages[0] es siempre el saludo de bienvenida, no una respuesta real
+      // -- ver nota en copyAll().
+      var msgsReales = messages.slice(1);
+      if (!msgsReales.length) { showCopyToast("❌ El chat está vacío"); return; }
+      var content = msgsReales.map(function(m){
         var prefix = m.role==="user"?"👤 CONSULTA":"⚖️ RESPUESTA";
         var text = stripMarkdown(m.content).replace(/\n/g,"<br>");
         return "<div style='margin-bottom:16px'><strong>"+prefix+":</strong><br>"+text+"</div><hr>";
@@ -1373,7 +1380,7 @@ function renderMessages() {
       ? "<div class='bubble-hover-wrap'>" +
         "<div class='bubble assistant'>"+renderMarkdown(m.content)+"</div>" +
         "<div class='bubble-action-btns'>" +
-        "<button class='bubble-copy-btn' onclick='copyMessage("+idx+")' title='Copiar respuesta'>📋</button>" +
+        (esRespuestaReal?"<button class='bubble-copy-btn' onclick='copyMessage("+idx+")' title='Copiar respuesta'>📋</button>":"") +
         (esRespuestaReal?"<button class='bubble-error-btn' onclick='reportarErrorChat("+idx+")' title='Reportar error'>⚠️</button>":"") +
         "</div></div>"
       : "<div class='bubble user'>"+m.content.replace(/</g,"&lt;")+"</div>";
