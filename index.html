@@ -649,7 +649,7 @@ const ADMIN_EMAIL = "rcscpalma@gmail.com";
 const SESSION_KEY = "frc_session";
 const SESSION_TTL = 60 * 60 * 1000;
 
-var mode = "chat", files = [], selectedDocs = [], loading = false;
+var mode = "chat", files = [], filesLoaded = false, selectedDocs = [], loading = false;
 var abortController = null;
 var chartDiarioInst = null, chartUsuarioInst = null;
 var allAdminUsuarios = [];
@@ -758,7 +758,6 @@ function mostrarMainApp() {
   main.style.flexDirection = "column";
   messages = [{ role:"assistant", content:"Hola, "+currentUser.name.split(" ")[0]+". Soy el asistente jurídico de Registro Civil.\n\nPuedes preguntarme sobre legislación, resoluciones de la DGRN/DGSJFP, procedimientos, inscripciones, nacionalidad, filiación, matrimonio y cualquier materia de Registro Civil.\n\nCuando vayas a hacer la consulta, redáctala lo más detalladamente posible. Indícame todos los datos acerca de la cuestión que quieres consultar, para poder darte la respuesta exacta del caso que consultas.\n\nLa búsqueda en documentos es automática — selecciono los más relevantes para cada consulta." }];
   renderMessages();
-  loadFiles();
   updateContextBar();
   loadMiConsumo();
 }
@@ -1011,6 +1010,7 @@ function setMode(m) {
   updateContextBar();
   if (m==="admin") showAdminTab("sistema");
   if (m==="micuenta") cargarMiCuenta();
+  if (m==="drive" && !filesLoaded) { filesLoaded = true; loadFiles(); }
   if (m==="historial") {
     document.getElementById("historialDetalle").style.display = "none";
     document.getElementById("historialView").style.display = "block";
@@ -1285,6 +1285,7 @@ async function loadFiles() {
     files = d.files || [];
     renderFiles();
   } catch(e) {
+    filesLoaded = false; // permite reintentar al reabrir el panel
     document.getElementById("driveContent").innerHTML = "<div style='color:#c00;font-size:13px;'>❌ Error: "+e.message+"</div>";
   }
 }
