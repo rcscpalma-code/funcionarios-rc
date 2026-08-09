@@ -555,6 +555,16 @@
             <div id="triggerStatus"></div>
           </div>
           <div class="admin-card">
+            <h3>⏳ Lista de espera: bajas y confirmación de activación</h3>
+            <p>Activa un trigger horario que: (1) devuelve a la cola a quien fue activado desde lista de espera y no se ha conectado en 48h, avisando al siguiente; y (2) da de baja automáticamente a usuarios de cortesía inactivos más de 72h cuando hay gente esperando plaza.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn-primary" onclick="activarTriggerExpiracion()" id="triggerExpBtnOn">✅ Activar</button>
+              <button class="btn-primary" onclick="desactivarTriggerExpiracion()" id="triggerExpBtnOff" style="background:#c62828;">❌ Desactivar</button>
+              <button class="btn-secondary" onclick="checkTriggerExpiracion()" id="triggerExpBtnCheck">🔍 Ver estado</button>
+            </div>
+            <div id="triggerExpStatus"></div>
+          </div>
+          <div class="admin-card">
             <h3>📊 Estado del índice</h3>
             <button class="btn-primary" onclick="checkIndex()">Ver estado</button>
             <div id="indexInfo" style="margin-top:8px;font-size:13px;color:#555;"></div>
@@ -1636,6 +1646,27 @@ async function checkTrigger() {
   var status=document.getElementById("triggerStatus"),btn=document.getElementById("triggerBtnCheck");
   btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Consultando…</div>";
   try{ var d=await proxyFetch({action:"estadoTrigger"}); if(d.error) throw new Error(d.error); status.innerHTML=d.activo?"<div class='status-msg status-ok'>✅ Trigger ACTIVO — cada lunes a las 3:00 AM.</div>":"<div class='status-msg status-err'>⚠️ Trigger NO activo.</div>"; }
+  catch(e){ status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>"; }
+  btn.disabled=false;
+}
+async function activarTriggerExpiracion() {
+  var status=document.getElementById("triggerExpStatus"),btn=document.getElementById("triggerExpBtnOn");
+  btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Activando…</div>";
+  try{ var d=await proxyFetch({action:"setupTriggerExpiracion"}); if(d.error) throw new Error(d.error); status.innerHTML="<div class='status-msg status-ok'>✅ Trigger horario activado.</div>"; }
+  catch(e){ status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>"; }
+  btn.disabled=false;
+}
+async function desactivarTriggerExpiracion() {
+  var status=document.getElementById("triggerExpStatus"),btn=document.getElementById("triggerExpBtnOff");
+  btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Desactivando…</div>";
+  try{ var d=await proxyFetch({action:"eliminarTriggerExpiracion"}); if(d.error) throw new Error(d.error); status.innerHTML="<div class='status-msg status-ok'>✅ Trigger eliminado.</div>"; }
+  catch(e){ status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>"; }
+  btn.disabled=false;
+}
+async function checkTriggerExpiracion() {
+  var status=document.getElementById("triggerExpStatus"),btn=document.getElementById("triggerExpBtnCheck");
+  btn.disabled=true; status.innerHTML="<div class='status-msg status-info'>⏳ Consultando…</div>";
+  try{ var d=await proxyFetch({action:"estadoTriggerExpiracion"}); if(d.error) throw new Error(d.error); status.innerHTML=d.activo?"<div class='status-msg status-ok'>✅ Trigger ACTIVO — cada hora.</div>":"<div class='status-msg status-err'>⚠️ Trigger NO activo.</div>"; }
   catch(e){ status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>"; }
   btn.disabled=false;
 }
