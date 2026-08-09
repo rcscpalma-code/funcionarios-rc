@@ -391,7 +391,7 @@
       <button class="mode-btn" id="btn-historial" onclick="setMode('historial')">📋 Historial</button>
       <button class="mode-btn" id="btn-micuenta" onclick="setMode('micuenta')" style="display:none;">👤 Mi cuenta</button>
       <button class="mode-btn" onclick="window.open('manual-ayuda-usuario.html','_blank')" style="margin-left:auto;border-color:#4CAF50;color:#2e7d32;background:#e8f5e9;">📖 Ayuda</button>
-      <button class="mode-btn" id="btn-admin-manual" onclick="window.open('https://drive.google.com/file/d/1_8A1H-vuYROwr30soKAUFmyXCvSAC3mr/view','_blank')" style="display:none;border-color:#FF9800;color:#E65100;background:#fff3e0;">📖 Manual</button>
+      <button class="mode-btn" id="btn-admin-manual" onclick="abrirManualAdmin()" style="display:none;border-color:#FF9800;color:#E65100;background:#fff3e0;">📖 Manual</button>
       <button class="mode-btn" id="btn-admin" onclick="setMode('admin')" style="display:none;background:#fff3e0;border-color:#FF9800;color:#E65100;">⚙️ Admin</button>
     </div>
     <div id="context-bar" class="context-bar" style="display:none"></div>
@@ -992,6 +992,27 @@ async function proxyFetch(params, signal, onReintento) {
       continue;
     }
     return resultado;
+  }
+}
+
+// Manual de administración: documento privado, servido por el backend
+// solo a la cuenta admin (verifica el ID token, nunca un email suelto).
+// Nunca debe apuntar a un archivo público (ni Drive abierto ni GitHub
+// Pages) — ver getManualAdmin en Código.js.
+async function abrirManualAdmin() {
+  var win = window.open("", "_blank");
+  if (win) win.document.write("Cargando manual…");
+  try {
+    var r = await proxyFetch({ action: "getManualAdmin" });
+    if (r && r.ok && r.html) {
+      win.document.open();
+      win.document.write(r.html);
+      win.document.close();
+    } else {
+      if (win) win.document.write((r && r.error) ? r.error : "No se ha podido cargar el manual.");
+    }
+  } catch (e) {
+    if (win) win.document.write("Error al cargar el manual: " + e.message);
   }
 }
 
