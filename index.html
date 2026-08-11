@@ -1836,6 +1836,20 @@ async function _guardarOficinaEnDestino(municipio, statusEl) {
   try {
     var d = await proxyFetch({ action: "actualizarOficina", email: currentUser.email, municipio: municipio });
     if (d.error) throw new Error(d.error);
+
+    // Madrid capital tiene varias oficinas bajo el mismo nombre de
+    // municipio (Oficina General vs. Registro Civil Central, con sus dos
+    // sedes) — el backend no guarda nada y pide elegir una explícitamente.
+    if (d.ambiguo) {
+      var botonesHtml = (d.opciones || []).map(function(op) {
+        return "<button class='btn-aportacion' style='display:block;width:100%;margin-top:6px;font-size:12px;' " +
+               "onclick='_elegirOficinaMadrid(this)' data-oficina=\"" + op.replace(/"/g,"&quot;") + "\">" + op + "</button>";
+      }).join("");
+      statusEl.innerHTML = "<div style='color:#555;margin-bottom:4px;'>" + (d.msg || "Elige tu oficina:") + "</div>" + botonesHtml;
+      statusEl._targetEl = statusEl; // referencia para que _elegirOficinaMadrid sepa dónde repintar
+      return d;
+    }
+
     userStatus.oficina_municipio        = d.municipio || municipio || "";
     userStatus.oficina_partido_judicial = d.partido_judicial || "";
     userStatus.oficina_fecha_dicireg    = d.fecha_dicireg || "";
@@ -1856,6 +1870,21 @@ async function _guardarOficinaEnDestino(municipio, statusEl) {
   } catch(e) {
     statusEl.innerHTML = "<span style='color:#c00;'>❌ "+e.message+"</span>";
     return null;
+  }
+}
+
+// Click en uno de los botones de desambiguación de Madrid: reenvía la
+// etiqueta exacta elegida, que el backend ya reconoce y resuelve.
+async function _elegirOficinaMadrid(btn) {
+  var statusEl = btn.closest("[id='oficina-status'],[id='oficinaModalStatus']") || btn.parentElement;
+  var oficina = btn.getAttribute("data-oficina");
+  var d = await _guardarOficinaEnDestino(oficina, statusEl);
+  if (d && d.resuelto) {
+    var input = document.getElementById("oficinaMunicipioInput");
+    if (input) input.value = oficina;
+    var modalInput = document.getElementById("oficinaModalInput");
+    if (modalInput) modalInput.value = oficina;
+    if (statusEl.id === "oficinaModalStatus") setTimeout(cerrarModalOficina, 1400);
   }
 }
 
