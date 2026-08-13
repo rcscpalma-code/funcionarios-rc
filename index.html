@@ -231,6 +231,23 @@
     .cat-vip       { background: #f3e5f5; color: #7b1fa2; }
     .cat-bloqueado { background: #ffebee; color: #c62828; }
     .cat-espera    { background: #f8f9fa; color: #888; }
+
+    /* Selector de oficina en cascada: se escribe solo para filtrar, el valor
+       únicamente se fija eligiendo una opción de la lista. */
+    .combo-wrap  { position: relative; margin-bottom: 8px; text-align: left; }
+    .combo-label { display: block; font-size: 11px; color: #888; margin-bottom: 3px; }
+    .combo-input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #ddd;
+                   border-radius: 8px; font-size: 13px; background: #fff; }
+    .combo-input:disabled { background: #f5f5f5; color: #aaa; cursor: not-allowed; }
+    .combo-input.elegido  { border-color: #a5d6a7; background: #f6fbf6; }
+    .combo-list  { display: none; position: absolute; z-index: 30; left: 0; right: 0; top: 100%;
+                   max-height: 210px; overflow-y: auto; background: #fff; border: 1px solid #ddd;
+                   border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.12); margin-top: 2px; }
+    .combo-list.abierta { display: block; }
+    .combo-op    { padding: 7px 10px; font-size: 13px; cursor: pointer; }
+    .combo-op:hover, .combo-op.activa { background: #e3f2fd; }
+    .combo-op .op-sec { color: #999; font-size: 11px; }
+    .combo-vacio { padding: 8px 10px; font-size: 12px; color: #999; }
   </style>
 </head>
 <body>
@@ -370,11 +387,9 @@
       <div class="limite-titulo" style="margin-top:6px;">¿Cuál es tu oficina de Registro Civil?</div>
       <div class="limite-msg">
         Para darte mejores respuestas necesitamos saber desde cuándo se aplica la Ley 20/2011
-        (DICIREG) en tu oficina. Indica el municipio y lo comprobamos automáticamente.
+        (DICIREG) en tu oficina. Elige el país y, después, tu oficina.
       </div>
-      <div style="margin-top:14px;">
-        <input id="oficinaModalInput" type="text" placeholder="Ej: Garafía" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;" onkeydown="if(event.key==='Enter') guardarOficinaModal()">
-      </div>
+      <div id="oficinaSelectorModal" style="margin-top:14px;"></div>
       <div class="limite-opciones" style="margin-top:14px;">
         <button class="btn-aportacion" onclick="guardarOficinaModal()">Guardar</button>
       </div>
@@ -452,12 +467,14 @@
         <div class="admin-card">
           <h3>📍 Mi oficina de Registro Civil</h3>
           <p style="font-size:12px;color:#888;margin-bottom:10px;">
-            Indica el municipio de tu oficina para que el asistente sepa, sin tener que preguntártelo
-            cada vez, desde cuándo se aplica la Ley 20/2011 (DICIREG) en tu partido judicial.
+            Elige tu oficina para que el asistente sepa, sin tener que preguntártelo cada vez, desde
+            cuándo se aplica la Ley 20/2011 (DICIREG) en ella. Están tanto los municipios españoles
+            (por provincia y partido judicial) como las 177 Oficinas Consulares.
           </p>
-          <div style="display:flex;gap:8px;margin-bottom:8px;">
-            <input id="oficinaMunicipioInput" type="text" placeholder="Ej: Garafía" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;">
+          <div id="oficinaSelectorCuenta"></div>
+          <div style="display:flex;gap:8px;margin:8px 0;">
             <button class="btn-success" style="font-size:13px;padding:8px 14px;" onclick="guardarOficina()">Guardar</button>
+            <button class="btn-secondary" style="font-size:13px;padding:8px 14px;" onclick="borrarOficina()">Quitar oficina</button>
           </div>
           <div id="oficina-status" style="font-size:12px;color:#555;line-height:1.6;"></div>
         </div>
@@ -747,7 +764,10 @@ async function showApp() {
       saldo_restante:  acceso.saldo_restante || 0,
       oficina_municipio:        acceso.oficina_municipio || "",
       oficina_partido_judicial: acceso.oficina_partido_judicial || "",
-      oficina_fecha_dicireg:    acceso.oficina_fecha_dicireg || ""
+      oficina_fecha_dicireg:    acceso.oficina_fecha_dicireg || "",
+      oficina_provincia:        acceso.oficina_provincia || "",
+      oficina_pais:             acceso.oficina_pais || "",
+      oficina_etiqueta:         acceso.oficina_etiqueta || acceso.oficina_municipio || ""
     };
     var session = JSON.parse(localStorage.getItem(SESSION_KEY) || "{}");
     session.userStatus = userStatus;
@@ -879,7 +899,9 @@ function actualizarOficinaBadge() {
   if (!badge) return;
   if (!userStatus.oficina_municipio || currentUser.email === ADMIN_EMAIL) { badge.style.display = "none"; return; }
   var fecha = _formatearFechaDicireg(userStatus.oficina_fecha_dicireg);
-  badge.textContent = userStatus.oficina_municipio + (fecha ? " · LRC'2011 desde " + fecha : "");
+  // Oficina, provincia y —solo si está fuera de España— país.
+  var etiqueta = userStatus.oficina_etiqueta || userStatus.oficina_municipio;
+  badge.textContent = etiqueta + (fecha ? " · LRC'2011 desde " + fecha : "");
   badge.style.display = "inline-block";
 }
 
@@ -1812,14 +1834,8 @@ async function cargarMiCuenta() {
   else if(userStatus.categoria==="colaborador"){saldoLinea="<br><strong>Saldo disponible:</strong> "+(userStatus.saldo_restante||0).toFixed(2)+" €<br><strong>Crédito total:</strong> "+(userStatus.credito_euros||0).toFixed(2)+" €";}
   else if(userStatus.categoria==="vip"){saldoLinea="<br><strong>Acceso:</strong> ilimitado";}
   info.innerHTML="<strong>Nombre:</strong> "+currentUser.name+"<br><strong>Email:</strong> "+currentUser.email+"<br><strong>Categoría:</strong> "+(catLabel[userStatus.categoria]||userStatus.categoria)+saldoLinea;
-  var oficinaInput = document.getElementById("oficinaMunicipioInput");
-  if (oficinaInput && document.activeElement !== oficinaInput) oficinaInput.value = userStatus.oficina_municipio || "";
-  var oficinaStatus = document.getElementById("oficina-status");
-  if (oficinaStatus) {
-    oficinaStatus.innerHTML = userStatus.oficina_fecha_dicireg
-      ? "<strong>"+userStatus.oficina_municipio+"</strong>"+(userStatus.oficina_partido_judicial?" — partido judicial de "+userStatus.oficina_partido_judicial:"")+"<br>DICIREG (Ley 20/2011) desde el "+userStatus.oficina_fecha_dicireg
-      : (userStatus.oficina_municipio ? "<span style='color:#c62828;'>\""+userStatus.oficina_municipio+"\" no se ha encontrado en la tabla DICIREG. Revisa la ortografía.</span>" : "<span style='color:#888;'>Sin oficina configurada todavía.</span>");
-  }
+  montarSelectorOficina("oficinaSelectorCuenta");
+  pintarEstadoOficina(document.getElementById("oficina-status"));
   uso.innerHTML="<span style='color:#888;'>⏳ Cargando…</span>";
   try{
     var d=await proxyFetch({action:"miConsumo",email:currentUser.email}); if(d.error)throw new Error(d.error);
@@ -1827,80 +1843,330 @@ async function cargarMiCuenta() {
   }catch(e){uso.innerHTML="<span style='color:#c00;'>❌ Error al cargar: "+e.message+"</span>";}
 }
 
-// Lógica compartida entre el campo del panel "Mi cuenta" y el modal que se
-// muestra tras el login si el usuario aún no tiene oficina configurada.
-// Ambos llaman a esto pasándole su propio <input> y su propio elemento de
-// estado; solo cambia dónde se pinta el resultado.
-async function _guardarOficinaEnDestino(municipio, statusEl) {
-  statusEl.innerHTML = "<span style='color:#888;'>⏳ Buscando en la tabla DICIREG…</span>";
+// ── SELECTOR DE OFICINA EN CASCADA (País → Provincia → Municipio) ─────
+// Sustituye al antiguo campo de texto libre. Motivos: cada usuario escribía
+// el municipio a su manera (con o sin artículo, con o sin tilde), y sobre
+// todo hay 6 ciudades con Consulado cuyo nombre coincide con un municipio
+// español — con texto libre siempre ganaba el español. Aquí se elige de una
+// lista cerrada y se envía al backend el número de fila exacto de la hoja
+// DICIREG, así que no hay ambigüedad posible.
+//
+// El árbol completo (~8.300 oficinas) se pide una sola vez y se guarda en
+// sessionStorage: son bastantes KB, no tiene sentido volver a pedirlo cada
+// vez que se abre "Mi cuenta".
+var _OPCIONES_OFICINA = null;
+var _OPCIONES_KEY = "dicireg_opciones_v1";
+
+async function cargarOpcionesOficina() {
+  if (_OPCIONES_OFICINA) return _OPCIONES_OFICINA;
   try {
-    var d = await proxyFetch({ action: "actualizarOficina", email: currentUser.email, municipio: municipio });
+    var guardado = sessionStorage.getItem(_OPCIONES_KEY);
+    if (guardado) { _OPCIONES_OFICINA = JSON.parse(guardado); return _OPCIONES_OFICINA; }
+  } catch(e) {}
+  var d = await proxyFetch({ action: "opcionesDicireg" });
+  if (d.error) throw new Error(d.error);
+  _OPCIONES_OFICINA = d;
+  try { sessionStorage.setItem(_OPCIONES_KEY, JSON.stringify(d)); } catch(e) {}
+  return d;
+}
+
+function _normOf(s) {
+  return (s || "").toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+}
+
+// Combo filtrable: se escribe para buscar, pero el valor solo queda fijado
+// al elegir una opción de la lista (con el ratón o con Enter). Si se escribe
+// algo que no está en la lista, al salir del campo se restaura la última
+// selección válida — nunca se guarda texto suelto.
+function _crearCombo(wrapEl, opts) {
+  wrapEl.className = "combo-wrap";
+  wrapEl.innerHTML = "";
+  var label = document.createElement("label");
+  label.className = "combo-label";
+  label.textContent = opts.label;
+  var input = document.createElement("input");
+  input.className = "combo-input";
+  input.type = "text";
+  input.autocomplete = "off";
+  input.placeholder = opts.placeholder || "";
+  input.disabled = !!opts.disabled;
+  var list = document.createElement("div");
+  list.className = "combo-list";
+  wrapEl.appendChild(label); wrapEl.appendChild(input); wrapEl.appendChild(list);
+
+  var items = opts.items || [], elegido = null, activa = -1, visibles = [];
+
+  function pintar(filtro) {
+    var f = _normOf(filtro);
+    visibles = f ? items.filter(function(it) { return _normOf(it.label).indexOf(f) !== -1; }) : items.slice();
+    list.innerHTML = "";
+    if (!visibles.length) {
+      var v = document.createElement("div");
+      v.className = "combo-vacio";
+      v.textContent = "Sin coincidencias";
+      list.appendChild(v);
+    }
+    // Con 200 opciones ya hay de sobra para elegir; más solo hace la lista
+    // lenta de pintar y de leer.
+    visibles.slice(0, 200).forEach(function(it, i) {
+      var op = document.createElement("div");
+      op.className = "combo-op" + (i === activa ? " activa" : "");
+      op.textContent = it.label;
+      if (it.sec) {
+        var s = document.createElement("span");
+        s.className = "op-sec";
+        s.textContent = " · " + it.sec;
+        op.appendChild(s);
+      }
+      // mousedown, no click: se dispara antes del blur del input, que es
+      // quien cierra la lista.
+      op.addEventListener("mousedown", function(ev) { ev.preventDefault(); elegir(it); });
+      list.appendChild(op);
+    });
+    if (visibles.length > 200) {
+      var m = document.createElement("div");
+      m.className = "combo-vacio";
+      m.textContent = "…y " + (visibles.length - 200) + " más: sigue escribiendo para acotar";
+      list.appendChild(m);
+    }
+    list.classList.add("abierta");
+  }
+
+  function cerrar() { list.classList.remove("abierta"); activa = -1; }
+
+  function elegir(it) {
+    elegido = it;
+    input.value = it.label;
+    input.classList.add("elegido");
+    cerrar();
+    if (opts.onSelect) opts.onSelect(it);
+  }
+
+  input.addEventListener("focus", function() { pintar(""); input.select(); });
+  input.addEventListener("input", function() { input.classList.remove("elegido"); activa = -1; pintar(input.value); });
+  input.addEventListener("blur", function() {
+    setTimeout(function() {
+      cerrar();
+      // Se descarta lo tecleado si no llegó a elegirse nada de la lista.
+      input.value = elegido ? elegido.label : "";
+      if (elegido) input.classList.add("elegido");
+    }, 120);
+  });
+  input.addEventListener("keydown", function(ev) {
+    var tope = Math.min(visibles.length, 200);
+    if (ev.key === "ArrowDown")      { ev.preventDefault(); activa = Math.min(activa + 1, tope - 1); pintar(input.classList.contains("elegido") ? "" : input.value); }
+    else if (ev.key === "ArrowUp")   { ev.preventDefault(); activa = Math.max(activa - 1, 0); pintar(input.classList.contains("elegido") ? "" : input.value); }
+    else if (ev.key === "Enter")     {
+      ev.preventDefault();
+      // Con un solo resultado no hace falta ni bajar a él con las flechas.
+      if (activa >= 0 && visibles[activa]) elegir(visibles[activa]);
+      else if (visibles.length === 1) elegir(visibles[0]);
+    }
+    else if (ev.key === "Escape")    { cerrar(); input.blur(); }
+  });
+
+  return {
+    setItems: function(nuevos) { items = nuevos || []; elegido = null; input.value = ""; input.classList.remove("elegido"); cerrar(); },
+    setDisabled: function(v) { input.disabled = !!v; if (v) { items = []; elegido = null; input.value = ""; input.classList.remove("elegido"); } },
+    elegido: function() { return elegido; },
+    preseleccionar: function(label) {
+      var it = items.filter(function(x) { return _normOf(x.label) === _normOf(label); })[0];
+      if (it) { elegido = it; input.value = it.label; input.classList.add("elegido"); }
+      return !!it;
+    }
+  };
+}
+
+// Estado de cada selector montado, indexado por el id de su contenedor: el
+// modal y el panel "Mi cuenta" tienen cada uno el suyo, independientes.
+var _selectoresOficina = {};
+
+async function montarSelectorOficina(contenedorId) {
+  var host = document.getElementById(contenedorId);
+  if (!host) return null;
+  host.innerHTML = "<div style='font-size:12px;color:#888;'>⏳ Cargando oficinas…</div>";
+  var op;
+  try { op = await cargarOpcionesOficina(); }
+  catch(e) { host.innerHTML = "<div style='font-size:12px;color:#c00;'>❌ No se han podido cargar las oficinas: " + e.message + "</div>"; return null; }
+
+  host.innerHTML = "";
+  var wrapPais = document.createElement("div");
+  var wrapMedio = document.createElement("div");
+  var wrapMuni  = document.createElement("div");
+  host.appendChild(wrapPais); host.appendChild(wrapMedio); host.appendChild(wrapMuni);
+
+  var comboMedio, comboMuni;
+
+  var comboPais = _crearCombo(wrapPais, {
+    label: "País",
+    placeholder: "Escribe para buscar… (España, Alemania…)",
+    items: op.paises.map(function(p) { return { label: p }; }),
+    onSelect: function(it) {
+      if (it.label === "España") {
+        comboMedio.setItems(Object.keys(op.es).sort(function(a, b) { return a.localeCompare(b, "es"); })
+          .map(function(p) { return { label: p }; }));
+        _etiquetaCombo(wrapMedio, "Provincia");
+        comboMuni.setDisabled(false);
+        comboMuni.setItems([]);
+        _etiquetaCombo(wrapMuni, "Municipio u oficina");
+        wrapMuni.style.display = "";
+      } else {
+        var ciudades = (op.ex[it.label] || []).map(function(c) {
+          return { label: c[0], fila: c[1], sec: c[2] };
+        });
+        comboMedio.setItems(ciudades);
+        _etiquetaCombo(wrapMedio, "Oficina Consular");
+        comboMuni.setDisabled(true);
+        wrapMuni.style.display = "none";
+      }
+    }
+  });
+
+  comboMedio = _crearCombo(wrapMedio, {
+    label: "Provincia",
+    placeholder: "Elige antes el país",
+    items: [], disabled: false,
+    onSelect: function(it) {
+      var pais = comboPais.elegido();
+      if (pais && pais.label === "España") {
+        comboMuni.setItems((op.es[it.label] || []).map(function(m) { return { label: m[0], fila: m[1] }; }));
+      }
+    }
+  });
+
+  comboMuni = _crearCombo(wrapMuni, {
+    label: "Municipio u oficina",
+    placeholder: "Elige antes la provincia",
+    items: [], disabled: false
+  });
+
+  var sel = {
+    host: host,
+    // La oficina definitiva es la del último combo visible: el municipio en
+    // España, la ciudad consular en el extranjero.
+    seleccion: function() {
+      var pais = comboPais.elegido();
+      if (!pais) return null;
+      var fin = (pais.label === "España") ? comboMuni.elegido() : comboMedio.elegido();
+      if (!fin || !fin.fila) return null;
+      return { fila: fin.fila, label: fin.label, pais: pais.label };
+    }
+  };
+  _selectoresOficina[contenedorId] = sel;
+
+  // Si ya tenía oficina guardada, se deja preseleccionada para que vea de un
+  // vistazo cuál es la que consta, no un formulario en blanco.
+  if (userStatus && userStatus.oficina_municipio) {
+    var paisGuardado = userStatus.oficina_pais || "España";
+    if (comboPais.preseleccionar(paisGuardado)) {
+      if (paisGuardado === "España") {
+        comboMedio.setItems(Object.keys(op.es).sort(function(a, b) { return a.localeCompare(b, "es"); })
+          .map(function(p) { return { label: p }; }));
+        _etiquetaCombo(wrapMedio, "Provincia");
+        if (userStatus.oficina_provincia && comboMedio.preseleccionar(userStatus.oficina_provincia)) {
+          comboMuni.setItems((op.es[userStatus.oficina_provincia] || []).map(function(m) { return { label: m[0], fila: m[1] }; }));
+          comboMuni.preseleccionar(userStatus.oficina_municipio);
+        }
+      } else {
+        comboMedio.setItems((op.ex[paisGuardado] || []).map(function(c) { return { label: c[0], fila: c[1], sec: c[2] }; }));
+        _etiquetaCombo(wrapMedio, "Oficina Consular");
+        comboMedio.preseleccionar(userStatus.oficina_municipio);
+        wrapMuni.style.display = "none";
+      }
+    }
+  }
+  return sel;
+}
+
+function _etiquetaCombo(wrapEl, texto) {
+  var l = wrapEl.querySelector(".combo-label");
+  if (l) l.textContent = texto;
+  var i = wrapEl.querySelector(".combo-input");
+  if (i) i.placeholder = "Escribe para buscar…";
+}
+
+// Resumen de la oficina que consta ahora mismo en el perfil.
+function pintarEstadoOficina(statusEl) {
+  if (!statusEl) return;
+  if (!userStatus || !userStatus.oficina_municipio) {
+    statusEl.innerHTML = "<span style='color:#888;'>Sin oficina configurada todavía.</span>";
+    return;
+  }
+  var etiqueta = userStatus.oficina_etiqueta || userStatus.oficina_municipio;
+  if (!userStatus.oficina_fecha_dicireg) {
+    statusEl.innerHTML = "<span style='color:#c62828;'>\"" + etiqueta + "\" no tiene fecha DICIREG asociada. Vuelve a elegir tu oficina en las listas de arriba.</span>";
+    return;
+  }
+  var esConsular = userStatus.oficina_pais && userStatus.oficina_pais !== "España";
+  statusEl.innerHTML = "<strong>" + etiqueta + "</strong>"
+    + (esConsular ? " <span style='color:#888;'>(Oficina Consular)</span>"
+                  : (userStatus.oficina_partido_judicial ? "<br>Partido judicial de " + userStatus.oficina_partido_judicial : ""))
+    + "<br>DICIREG (Ley 20/2011) desde el " + userStatus.oficina_fecha_dicireg;
+}
+
+// Envía la selección al backend. Recibe la fila exacta de DICIREG, nunca
+// texto: es lo que hace imposible confundir Córdoba (Argentina) con Córdoba.
+async function _guardarSeleccionOficina(contenedorId, statusEl) {
+  var sel = _selectoresOficina[contenedorId];
+  var elegido = sel && sel.seleccion();
+  if (!elegido) {
+    statusEl.innerHTML = "<span style='color:#c62828;'>Elige país y oficina en las listas antes de guardar.</span>";
+    return null;
+  }
+  statusEl.innerHTML = "<span style='color:#888;'>⏳ Guardando…</span>";
+  try {
+    var d = await proxyFetch({ action: "actualizarOficina", email: currentUser.email, filaDicireg: elegido.fila });
     if (d.error) throw new Error(d.error);
-
-    // Madrid capital tiene varias oficinas bajo el mismo nombre de
-    // municipio (Oficina General vs. Registro Civil Central, con sus dos
-    // sedes) — el backend no guarda nada y pide elegir una explícitamente.
-    if (d.ambiguo) {
-      var botonesHtml = (d.opciones || []).map(function(op) {
-        return "<button class='btn-aportacion' style='display:block;width:100%;margin-top:6px;font-size:12px;' " +
-               "onclick='_elegirOficinaMadrid(this)' data-oficina=\"" + op.replace(/"/g,"&quot;") + "\">" + op + "</button>";
-      }).join("");
-      statusEl.innerHTML = "<div style='color:#555;margin-bottom:4px;'>" + (d.msg || "Elige tu oficina:") + "</div>" + botonesHtml;
-      statusEl._targetEl = statusEl; // referencia para que _elegirOficinaMadrid sepa dónde repintar
-      return d;
-    }
-
-    userStatus.oficina_municipio        = d.municipio || municipio || "";
-    userStatus.oficina_partido_judicial = d.partido_judicial || "";
-    userStatus.oficina_fecha_dicireg    = d.fecha_dicireg || "";
-    var session = JSON.parse(localStorage.getItem(SESSION_KEY) || "{}");
-    session.userStatus = userStatus;
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    actualizarOficinaBadge();
-    if (d.resuelto) {
-      statusEl.innerHTML = "<strong>"+d.municipio+"</strong> — partido judicial de "+d.partido_judicial+"<br>DICIREG (Ley 20/2011) desde el "+d.fecha_dicireg;
-      showCopyToast("✅ Oficina guardada");
-    } else if (!municipio) {
-      statusEl.innerHTML = "<span style='color:#888;'>Sin oficina configurada.</span>";
-      showCopyToast("Oficina eliminada del perfil");
-    } else {
-      statusEl.innerHTML = "<span style='color:#c62828;'>"+(d.msg||"No se ha encontrado ese municipio.")+"</span>";
-    }
+    _aplicarOficinaAlEstado(d);
+    pintarEstadoOficina(statusEl);
+    showCopyToast("✅ Oficina guardada");
     return d;
   } catch(e) {
-    statusEl.innerHTML = "<span style='color:#c00;'>❌ "+e.message+"</span>";
+    statusEl.innerHTML = "<span style='color:#c00;'>❌ " + e.message + "</span>";
     return null;
   }
 }
 
-// Click en uno de los botones de desambiguación de Madrid: reenvía la
-// etiqueta exacta elegida, que el backend ya reconoce y resuelve.
-async function _elegirOficinaMadrid(btn) {
-  var statusEl = btn.closest("[id='oficina-status'],[id='oficinaModalStatus']") || btn.parentElement;
-  var oficina = btn.getAttribute("data-oficina");
-  var d = await _guardarOficinaEnDestino(oficina, statusEl);
-  if (d && d.resuelto) {
-    var input = document.getElementById("oficinaMunicipioInput");
-    if (input) input.value = oficina;
-    var modalInput = document.getElementById("oficinaModalInput");
-    if (modalInput) modalInput.value = oficina;
-    if (statusEl.id === "oficinaModalStatus") setTimeout(cerrarModalOficina, 1400);
-  }
+function _aplicarOficinaAlEstado(d) {
+  userStatus.oficina_municipio        = d.municipio || "";
+  userStatus.oficina_partido_judicial = d.partido_judicial || "";
+  userStatus.oficina_fecha_dicireg    = d.fecha_dicireg || "";
+  userStatus.oficina_provincia        = d.provincia || "";
+  userStatus.oficina_pais             = d.pais || "";
+  userStatus.oficina_etiqueta         = d.etiqueta || d.municipio || "";
+  var session = JSON.parse(localStorage.getItem(SESSION_KEY) || "{}");
+  session.userStatus = userStatus;
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  actualizarOficinaBadge();
 }
 
 async function guardarOficina() {
   if (!currentUser) return;
-  var input = document.getElementById("oficinaMunicipioInput");
-  await _guardarOficinaEnDestino((input.value || "").trim(), document.getElementById("oficina-status"));
+  await _guardarSeleccionOficina("oficinaSelectorCuenta", document.getElementById("oficina-status"));
+}
+
+async function borrarOficina() {
+  if (!currentUser) return;
+  var statusEl = document.getElementById("oficina-status");
+  statusEl.innerHTML = "<span style='color:#888;'>⏳ Quitando…</span>";
+  try {
+    var d = await proxyFetch({ action: "actualizarOficina", email: currentUser.email, municipio: "" });
+    if (d.error) throw new Error(d.error);
+    _aplicarOficinaAlEstado({});
+    await montarSelectorOficina("oficinaSelectorCuenta");
+    pintarEstadoOficina(statusEl);
+    showCopyToast("Oficina eliminada del perfil");
+  } catch(e) {
+    statusEl.innerHTML = "<span style='color:#c00;'>❌ " + e.message + "</span>";
+  }
 }
 
 // ── Modal de oficina tras el login (solo si aún no consta en el perfil) ──
 function mostrarModalOficina() {
   if (currentUser && currentUser.email === ADMIN_EMAIL) return;
   document.getElementById("oficinaModalStatus").innerHTML = "";
-  document.getElementById("oficinaModalInput").value = "";
   document.getElementById("oficinaOverlay").style.display = "flex";
-  setTimeout(function(){ document.getElementById("oficinaModalInput").focus(); }, 50);
+  montarSelectorOficina("oficinaSelectorModal");
 }
 
 function cerrarModalOficina() {
@@ -1909,13 +2175,10 @@ function cerrarModalOficina() {
 
 async function guardarOficinaModal() {
   if (!currentUser) return;
-  var input  = document.getElementById("oficinaModalInput");
-  var status = document.getElementById("oficinaModalStatus");
-  var municipio = (input.value || "").trim();
-  if (!municipio) { status.innerHTML = "<span style='color:#c62828;'>Escribe el nombre de tu municipio.</span>"; return; }
-  var d = await _guardarOficinaEnDestino(municipio, status);
+  var d = await _guardarSeleccionOficina("oficinaSelectorModal", document.getElementById("oficinaModalStatus"));
   if (d && d.resuelto) setTimeout(cerrarModalOficina, 1400);
 }
+
 
 // =====================================================================
 // REEMPLAZO: busca "async function loadErrores()" y reemplaza TODA
