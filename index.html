@@ -648,6 +648,11 @@
               <button id="btnErroresReportadas" class="mode-btn active" onclick="cambiarVistaErrores('reportadas')">⚠️ Reportadas por usuarios</button>
               <button id="btnErroresTodas" class="mode-btn" onclick="cambiarVistaErrores('todas')">🔍 Buscar en todas las consultas</button>
             </div>
+            <div id="filtroRevisionControles" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+              <button id="btnFiltroPendientes" class="mode-btn active" onclick="cambiarFiltroRevision('pendientes')">🕓 Pendientes</button>
+              <button id="btnFiltroRevisadas" class="mode-btn" onclick="cambiarFiltroRevision('revisadas')">✅ Revisadas</button>
+              <button id="btnFiltroTodasRevision" class="mode-btn" onclick="cambiarFiltroRevision('todas')">Todas</button>
+            </div>
             <div id="buscarHistorialControles" style="display:none;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
               <input id="buscarHistorialTexto" type="text" placeholder="Buscar por texto en la pregunta o la respuesta…" style="flex:2;min-width:220px;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;" onkeydown="if(event.key==='Enter') buscarHistorialAdmin()">
               <input id="buscarHistorialEmail" type="text" placeholder="Filtrar por nombre o email de usuario (opcional)" style="flex:1;min-width:160px;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;" onkeydown="if(event.key==='Enter') buscarHistorialAdmin()">
@@ -683,7 +688,7 @@ var allAdminUsuarios = [];
 var selectedFolderId = null, folderStack = [];
 var historialCache = [], historialFiltroActual = "";
 var historialHiloMsgs = [], historialHiloLoading = false, historialHiloAbort = null, historialHiloGen = 0;
-var erroresCache = [];
+var erroresCache = [], erroresCacheSinFiltrar = [], filtroRevisionActual = "pendientes";
 
 function toggleLoginBtn() {
   var checked = document.getElementById("rgpdCheck").checked;
@@ -2195,21 +2200,30 @@ async function guardarOficinaModal() {
 // devuelven entradas con la misma forma, así que el detalle y los botones
 // de confirmar/marcar-correcta (verDetalleError/revisarErrorIdx/
 // confirmarErrorIdx) funcionan igual sin importar de dónde vino la lista.
+// Devuelve el badge de estado de revisión -- SIEMPRE algo visible (incluida
+// "🕓 Pendiente" cuando aún no se ha tocado), para que el admin pueda
+// distinguir de un vistazo qué ya trató y qué no. Antes este badge quedaba
+// tapado por el de "nota" (motivo del reporte) en cuanto la entrada tenía
+// nota -- y en la vista de reportadas TODAS la tienen, así que el estado de
+// revisión nunca se veía.
+function badgeRevisionHtml(revision) {
+  if (revision === "CONFIRMADO") return "<div style='font-size:11px;background:#ffebee;color:#c62828;padding:2px 8px;border-radius:10px;white-space:nowrap;'>❌ Error confirmado</div>";
+  if (revision === "PARCIAL")    return "<div style='font-size:11px;background:#fff3e0;color:#e65100;padding:2px 8px;border-radius:10px;white-space:nowrap;'>🟠 Parcialmente correcto</div>";
+  if (revision === "CORRECTO")   return "<div style='font-size:11px;background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;white-space:nowrap;'>✅ Ya revisada</div>";
+  return "<div style='font-size:11px;background:#fff8e1;color:#f57f17;padding:2px 8px;border-radius:10px;white-space:nowrap;'>🕓 Pendiente</div>";
+}
+
 function renderListaConsultas(entradas) {
   erroresCache = entradas;
   return entradas.map(function(e, eIdx) {
     var fechaStr = e.fecha ? new Date(e.fecha).toLocaleString("es-ES") : "";
     var pregCorta = e.pregunta.length > 120 ? e.pregunta.substring(0,120) + "…" : e.pregunta;
     var notaCorta = e.nota ? (e.nota.length > 60 ? e.nota.substring(0,60) + "…" : e.nota) : "";
-    var badgeRevision = e.revision === "CONFIRMADO"
-      ? "<div style='font-size:11px;background:#ffebee;color:#c62828;padding:2px 8px;border-radius:10px;white-space:nowrap;'>❌ Error confirmado</div>"
-      : (e.revision === "CORRECTO"
-          ? "<div style='font-size:11px;background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;white-space:nowrap;'>✅ Ya revisada</div>"
-          : "");
+    var notaBadge = notaCorta ? "<div style='font-size:11px;background:#ffebee;color:#c62828;padding:2px 8px;border-radius:10px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>⚠️ " + notaCorta + "</div>" : "";
     return "<div onclick='verDetalleError("+eIdx+")' style='background:#fff8f8;border:1px solid #ffcdd2;border-radius:9px;padding:14px;margin-bottom:10px;cursor:pointer;transition:box-shadow 0.15s;' onmouseover='this.style.boxShadow=\"0 2px 8px rgba(198,40,40,0.15)\"' onmouseout='this.style.boxShadow=\"none\"'>" +
       "<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:8px;'>" +
       "<div style='font-size:11px;color:#aaa;'>📅 " + fechaStr + " · 👤 " + escapeHtml(e.nombre||e.email) + "</div>" +
-      (notaCorta ? "<div style='font-size:11px;background:#ffebee;color:#c62828;padding:2px 8px;border-radius:10px;max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>⚠️ " + notaCorta + "</div>" : badgeRevision) +
+      "<div style='display:flex;flex-direction:column;align-items:flex-end;gap:4px;max-width:55%;'>" + notaBadge + badgeRevisionHtml(e.revision) + "</div>" +
       "</div>" +
       "<div style='font-size:13px;color:#185FA5;font-weight:500;'>" + pregCorta.replace(/</g,"&lt;") + "</div>" +
       "<div style='font-size:11px;color:#999;margin-top:4px;'>Haz clic para ver el detalle completo →</div>" +
@@ -2234,6 +2248,41 @@ function actualizarVistaErrores() {
   else loadErrores();
 }
 
+// Filtro cliente por estado de revisión (RevisionAdmin) -- "pendientes" es el
+// filtro por defecto al entrar en la pestaña, para que lo primero que vea el
+// admin sea justo lo que le falta por tratar, no una mezcla con lo de siempre.
+function filtrarPorRevision(entradas, filtro) {
+  if (filtro === "todas") return entradas;
+  if (filtro === "revisadas") return entradas.filter(function(e){ return !!e.revision; });
+  return entradas.filter(function(e){ return !e.revision; });
+}
+
+function cambiarFiltroRevision(filtro) {
+  filtroRevisionActual = filtro;
+  document.getElementById("btnFiltroPendientes").classList.toggle("active", filtro === "pendientes");
+  document.getElementById("btnFiltroRevisadas").classList.toggle("active", filtro === "revisadas");
+  document.getElementById("btnFiltroTodasRevision").classList.toggle("active", filtro === "todas");
+  renderErroresConFiltro();
+}
+
+function renderErroresConFiltro() {
+  var status = document.getElementById("erroresStatus");
+  var lista   = document.getElementById("erroresLista");
+  var filtradas = filtrarPorRevision(erroresCacheSinFiltrar, filtroRevisionActual);
+  var etiqueta = vistaErroresActual === "reportadas" ? " reportada" : " consulta";
+  status.textContent = filtradas.length + " de " + erroresCacheSinFiltrar.length + etiqueta + (erroresCacheSinFiltrar.length!==1?"s":"") +
+    (filtroRevisionActual === "pendientes" ? " pendiente" + (filtradas.length!==1?"s":"") + " de revisar" :
+     filtroRevisionActual === "revisadas"  ? " ya revisada" + (filtradas.length!==1?"s":"") : "");
+  if (!filtradas.length) {
+    lista.innerHTML = "<div style='color:#888;font-size:13px;padding:16px 0;'>" +
+      (filtroRevisionActual === "pendientes" ? "🎉 No queda nada pendiente de revisar." : "Sin resultados con este filtro.") +
+      "</div>";
+    erroresCache = [];
+    return;
+  }
+  lista.innerHTML = renderListaConsultas(filtradas);
+}
+
 async function buscarHistorialAdmin() {
   var status = document.getElementById("erroresStatus");
   var lista   = document.getElementById("erroresLista");
@@ -2244,14 +2293,16 @@ async function buscarHistorialAdmin() {
   try {
     var d = await proxyFetch({ action:"buscarHistorialAdmin", email:currentUser.email, texto:texto, filtroEmail:filtroEmail, limite:150 });
     if (d.error) throw new Error(d.error);
-    status.textContent = d.mostrando + " de " + d.total + " consulta" + (d.total!==1?"s":"") +
-      (d.total > d.mostrando ? " — afina la búsqueda para ver el resto" : "");
     if (!d.entradas.length) {
+      status.textContent = "0 de " + d.total + " consultas";
       lista.innerHTML = "<div style='color:#888;font-size:13px;padding:16px 0;'>Sin resultados. Prueba con menos texto o sin filtro de email.</div>";
       erroresCache = [];
+      erroresCacheSinFiltrar = [];
       return;
     }
-    lista.innerHTML = renderListaConsultas(d.entradas);
+    erroresCacheSinFiltrar = d.entradas;
+    renderErroresConFiltro();
+    if (d.total > d.mostrando) status.textContent += " — afina la búsqueda para ver el resto";
   } catch(e) {
     status.textContent = "❌ Error: " + e.message;
   }
@@ -2265,13 +2316,14 @@ async function loadErrores() {
   try {
     var d = await proxyFetch({ action:"getErrores", email:currentUser.email });
     if (d.error) throw new Error(d.error);
-    status.textContent = d.total + " respuesta" + (d.total!==1?"s":"") + " reportada" + (d.total!==1?"s":"");
+    erroresCacheSinFiltrar = d.errores;
     if (!d.errores.length) {
+      status.textContent = "0 respuestas reportadas";
       lista.innerHTML = "<div style='color:#888;font-size:13px;padding:16px 0;'>No hay respuestas reportadas.</div>";
       erroresCache = [];
       return;
     }
-    lista.innerHTML = renderListaConsultas(d.errores);
+    renderErroresConFiltro();
   } catch(e) {
     status.textContent = "❌ Error: " + e.message;
   }
@@ -2319,6 +2371,22 @@ function verDetalleError(idx) {
     body.appendChild(notaDiv);
   }
 
+  // Si ya se revisó antes, mostrarlo -- si no, el admin no tiene forma de
+  // saber (sin volver a leer todo) que ya pasó por aquí y qué decidió.
+  if (e.revision) {
+    var revDiv = document.createElement("div");
+    revDiv.style.cssText = "border-radius:8px;padding:12px 14px;margin-bottom:16px;" +
+      (e.revision === "CONFIRMADO" ? "background:#ffebee;border:1px solid #ffcdd2;" :
+       e.revision === "PARCIAL"    ? "background:#fff3e0;border:1px solid #ffe0b2;" :
+                                      "background:#e8f5e9;border:1px solid #c8e6c9;");
+    var revLabel = e.revision === "CONFIRMADO" ? "❌ Ya revisada — error confirmado" :
+                   e.revision === "PARCIAL"    ? "🟠 Ya revisada — parcialmente correcto" :
+                                                  "✅ Ya revisada — correcta";
+    revDiv.innerHTML = "<div style='font-size:11px;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.03em;'>" + revLabel + "</div>" +
+      (e.motivo_admin ? "<div style='font-size:13px;line-height:1.6;white-space:pre-wrap;'>" + e.motivo_admin.replace(/</g,"&lt;").replace(/\n/g,"<br>") + "</div>" : "");
+    body.appendChild(revDiv);
+  }
+
   // Pregunta completa
   var pregDiv = document.createElement("div");
   pregDiv.style.cssText = "margin-bottom:16px;";
@@ -2346,8 +2414,9 @@ function verDetalleError(idx) {
   var footer = document.createElement("div");
   footer.style.cssText = "padding:14px 20px;border-top:1px solid #e0e0e0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:#fafafa;gap:8px;flex-wrap:wrap;";
   footer.innerHTML = "<button onclick='cerrarDetalleError()' style='padding:8px 18px;border-radius:7px;border:1px solid #ddd;background:#fff;cursor:pointer;font-size:13px;color:#666;'>Cerrar</button>" +
-    "<div style='display:flex;gap:8px;'>" +
+    "<div style='display:flex;gap:8px;flex-wrap:wrap;'>" +
     "<button class='btn-success' style='padding:8px 16px;font-size:13px;' onclick='cerrarDetalleError();revisarErrorIdx("+idx+")'>✅ Es correcto</button>" +
+    "<button style='padding:8px 16px;font-size:13px;border:none;border-radius:7px;cursor:pointer;background:#e65100;color:#fff;' onclick='cerrarDetalleError();parcialErrorIdx("+idx+")'>🟠 Parcialmente correcto</button>" +
     "<button class='btn-danger' style='padding:8px 16px;font-size:13px;' onclick='cerrarDetalleError();confirmarErrorIdx("+idx+")'>❌ Confirmar error</button>" +
     "</div>";
 
@@ -2430,16 +2499,10 @@ function revisarErrorIdx(idx) {
   if (!e) return;
   revisarError(e.fecha, e.email, "CORRECTO");
 }
-function confirmarErrorIdx(idx) {
+function parcialErrorIdx(idx) {
   var e = erroresCache[idx];
   if (!e) return;
-  revisarError(e.fecha, e.email, "CONFIRMADO");
-}
-  
-function revisarErrorIdx(idx) {
-  var e = erroresCache[idx];
-  if (!e) return;
-  revisarError(e.fecha, e.email, "CORRECTO");
+  revisarError(e.fecha, e.email, "PARCIAL");
 }
 function confirmarErrorIdx(idx) {
   var e = erroresCache[idx];
@@ -2450,6 +2513,8 @@ async function revisarError(fecha, emailUsuario, decision) {
   var motivo = prompt(
     decision === "CORRECTO"
       ? "Explica por qué la respuesta es correcta (quedará registrado para futuros reportes):"
+      : decision === "PARCIAL"
+      ? "Indica EXACTAMENTE qué parte de la respuesta es incorrecta y qué criterio/resolución/ley la corrige (el resto de la respuesta se sigue dando por válido; esto quedará registrado para que la IA no repita ese punto):"
       : "Indica qué criterio/resolución/ley supera este criterio erróneo:"
   );
   if (motivo === null) return;
@@ -2464,8 +2529,12 @@ async function revisarError(fecha, emailUsuario, decision) {
       motivo: motivo
     });
     if (d.error) throw new Error(d.error);
-    showCopyToast(decision === "CORRECTO" ? "✅ Marcado como correcto." : "❌ Error confirmado. Caché invalidada.");
-    loadErrores();
+    showCopyToast(
+      decision === "CORRECTO" ? "✅ Marcado como correcto." :
+      decision === "PARCIAL"  ? "🟠 Error parcial registrado. Caché invalidada." :
+                                 "❌ Error confirmado. Caché invalidada."
+    );
+    actualizarVistaErrores();
   } catch(e) { showCopyToast("❌ Error: " + e.message); }
 }
 
@@ -2476,8 +2545,8 @@ function verRevisionIdx(idx) {
 }
 
 function verRevision(nota, decision, motivo) {
-  var color = decision === "CORRECTO" ? "#2e7d32" : "#c62828";
-  var icono = decision === "CORRECTO" ? "✅" : "🚫";
+  var color = decision === "CORRECTO" ? "#2e7d32" : (decision === "PARCIAL" ? "#e65100" : "#c62828");
+  var icono = decision === "CORRECTO" ? "✅" : (decision === "PARCIAL" ? "🟠" : "🚫");
   var overlay = document.createElement("div");
   overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;";
   var box = document.createElement("div");
