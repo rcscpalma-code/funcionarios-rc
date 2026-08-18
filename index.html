@@ -386,15 +386,16 @@
       <div class="limite-icon" style="font-size:36px;">📍</div>
       <div class="limite-titulo" style="margin-top:6px;">¿Cuál es tu oficina de Registro Civil?</div>
       <div class="limite-msg">
-        Para darte mejores respuestas necesitamos saber desde cuándo se aplica la Ley 20/2011
-        (DICIREG) en tu oficina. Elige el país y, después, tu oficina.
+        Este dato es obligatorio y no se puede omitir: sin él, el asistente no puede saber desde
+        cuándo se aplica la Ley 20/2011 (DICIREG) en el lugar donde se plantea lo que preguntas, y
+        no podría responder con la ley correcta (Ley 20/2011 o LRC 1957 anterior a DICIREG).
+        Elige el país y, después, tu oficina.
       </div>
       <div id="oficinaSelectorModal" style="margin-top:14px;"></div>
       <div class="limite-opciones" style="margin-top:14px;">
         <button class="btn-aportacion" onclick="guardarOficinaModal()">Guardar</button>
       </div>
       <div id="oficinaModalStatus" style="font-size:12px;color:#888;margin-top:8px;min-height:16px;"></div>
-      <button onclick="cerrarModalOficina()" style="margin-top:10px;background:none;border:none;color:#999;font-size:12px;cursor:pointer;text-decoration:underline;">Ahora no, preguntarme más tarde</button>
     </div>
   </div>
 
@@ -467,9 +468,10 @@
         <div class="admin-card">
           <h3>📍 Mi oficina de Registro Civil</h3>
           <p style="font-size:12px;color:#888;margin-bottom:10px;">
-            Elige tu oficina para que el asistente sepa, sin tener que preguntártelo cada vez, desde
-            cuándo se aplica la Ley 20/2011 (DICIREG) en ella. Están tanto los municipios españoles
-            (por provincia y partido judicial) como las 177 Oficinas Consulares.
+            Dato obligatorio: sin él el asistente no puede saber desde cuándo se aplica la Ley
+            20/2011 (DICIREG) en tu oficina, y no podrás enviar consultas hasta configurarlo.
+            Están tanto los municipios españoles (por provincia y partido judicial) como las 177
+            Oficinas Consulares.
           </p>
           <div id="oficinaSelectorCuenta"></div>
           <div style="display:flex;gap:8px;margin:8px 0;">
@@ -1487,6 +1489,10 @@ async function sendMessage() {
   var input = document.getElementById("chatInput");
   var text = input.value.trim();
   if (!text || loading) return;
+  if (currentUser && currentUser.email !== ADMIN_EMAIL && !userStatus.oficina_municipio) {
+    mostrarModalOficina();
+    return;
+  }
   loading = true;
   var sendBtnEl = document.querySelector(".send-btn");
   if (sendBtnEl) sendBtnEl.disabled = true;
