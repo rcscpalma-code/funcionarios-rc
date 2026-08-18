@@ -1743,7 +1743,12 @@ function renderAdminUserList(lista) {
     var catClass = "cat-" + (u.estado === "espera" ? "espera" : u.categoria);
     var catLabel = u.estado === "espera" ? "⏳ espera" : u.categoria;
     var saldoInfo = u.categoria === "colaborador" ? " · <strong style='color:#2e7d32'>" + u.saldo_restante.toFixed(2) + " € saldo</strong>" : u.categoria === "cortesia" ? " · " + u.mensajes_usados + " msgs usados" : "";
-    return "<div class='user-row' style='cursor:pointer;' onclick='seleccionarUsuarioAdmin(\""+escapeHtml(u.email)+"\")'><div><div style='font-weight:500;font-size:13px;'>"+escapeHtml(u.nombre||u.email)+"</div><div class='email'>"+escapeHtml(u.email)+saldoInfo+"</div></div><span class='categoria-pill "+catClass+"'>"+catLabel+"</span></div>";
+    var rcInfo = u.oficina_municipio
+      ? "<div style='font-size:12px;color:#1565c0;'>📍 " + escapeHtml(u.oficina_etiqueta || u.oficina_municipio)
+        + (u.oficina_partido_judicial ? " · Partido judicial de " + escapeHtml(u.oficina_partido_judicial) : "")
+        + (u.oficina_fecha_dicireg ? " · DICIREG desde " + escapeHtml(u.oficina_fecha_dicireg) : "") + "</div>"
+      : "";
+    return "<div class='user-row' style='cursor:pointer;' onclick='seleccionarUsuarioAdmin(\""+escapeHtml(u.email)+"\")'><div><div style='font-weight:500;font-size:13px;'>"+escapeHtml(u.nombre||u.email)+"</div>"+rcInfo+"<div class='email'>"+escapeHtml(u.email)+saldoInfo+"</div></div><span class='categoria-pill "+catClass+"'>"+catLabel+"</span></div>";
   }).join("");
 }
 
