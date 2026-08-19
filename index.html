@@ -386,15 +386,16 @@
       <div class="limite-icon" style="font-size:36px;">📍</div>
       <div class="limite-titulo" style="margin-top:6px;">¿Cuál es tu oficina de Registro Civil?</div>
       <div class="limite-msg">
-        Para darte mejores respuestas necesitamos saber desde cuándo se aplica la Ley 20/2011
-        (DICIREG) en tu oficina. Elige el país y, después, tu oficina.
+        Este dato es obligatorio y no se puede omitir: sin él, el asistente no puede saber desde
+        cuándo se aplica la Ley 20/2011 (DICIREG) en el lugar donde se plantea lo que preguntas, y
+        no podría responder con la ley correcta (Ley 20/2011 o LRC 1957 anterior a DICIREG).
+        Elige el país y, después, tu oficina.
       </div>
       <div id="oficinaSelectorModal" style="margin-top:14px;"></div>
       <div class="limite-opciones" style="margin-top:14px;">
         <button class="btn-aportacion" onclick="guardarOficinaModal()">Guardar</button>
       </div>
       <div id="oficinaModalStatus" style="font-size:12px;color:#888;margin-top:8px;min-height:16px;"></div>
-      <button onclick="cerrarModalOficina()" style="margin-top:10px;background:none;border:none;color:#999;font-size:12px;cursor:pointer;text-decoration:underline;">Ahora no, preguntarme más tarde</button>
     </div>
   </div>
 
@@ -431,6 +432,15 @@
     <!-- Historial -->
     <div id="panel-historial" class="panel" style="display:none;padding:16px;">
       <div id="historialView">
+        <div id="historialAdminToggle" style="display:none;gap:8px;margin-bottom:10px;">
+          <button class="mode-btn active" id="btnHistorialPropio" onclick="cambiarHistorialModoAdmin('propio')">👤 Mis consultas</button>
+          <button class="mode-btn" id="btnHistorialTodos" onclick="cambiarHistorialModoAdmin('todos')">🗂️ Todos los usuarios</button>
+        </div>
+        <div id="historialFiltroUsuarioWrap" style="display:none;margin-bottom:10px;">
+          <input type="text" id="historialFiltroUsuario" list="historialUsuariosDatalist" placeholder="Filtrar por usuario (nombre o email)…" oninput="filtrarHistorial()"
+            style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;"/>
+          <datalist id="historialUsuariosDatalist"></datalist>
+        </div>
         <div style="margin-bottom:12px;">
           <input type="text" id="historialSearch" placeholder="🔍 Buscar en el historial…" oninput="filtrarHistorial()"
             style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;"/>
@@ -441,7 +451,7 @@
         <button onclick="volverHistorial()" style="margin-bottom:12px;padding:6px 14px;border-radius:7px;border:1px solid #185FA5;background:#E6F1FB;color:#185FA5;cursor:pointer;font-size:13px;font-weight:600;">← Volver</button>
         <div id="historialDetalleContenido"></div>
         <div id="historialHilo" style="margin-top:12px;"></div>
-        <div class="input-bar" style="margin-top:12px;border:0.5px solid #e0e0e0;border-radius:9px;">
+        <div id="historialFollowupBar" class="input-bar" style="margin-top:12px;border:0.5px solid #e0e0e0;border-radius:9px;">
           <textarea id="historialFollowupInput" rows="2" style="flex:1" placeholder="¿Alguna duda sobre esta respuesta? Pregunta aquí…" onkeydown="handleHistorialFollowupKey(event)"></textarea>
           <button class="send-btn" id="historialFollowupBtn" onclick="enviarHistorialFollowup()">➤</button>
           <button id="historialFollowupCancelBtn" onclick="cancelarHistorialFollowup()" style="display:none;padding:6px 10px;border-radius:8px;background:#fff0f0;border:1.5px solid #c62828;color:#c62828;cursor:pointer;font-size:13px;font-weight:600;">✕</button>
@@ -467,9 +477,10 @@
         <div class="admin-card">
           <h3>📍 Mi oficina de Registro Civil</h3>
           <p style="font-size:12px;color:#888;margin-bottom:10px;">
-            Elige tu oficina para que el asistente sepa, sin tener que preguntártelo cada vez, desde
-            cuándo se aplica la Ley 20/2011 (DICIREG) en ella. Están tanto los municipios españoles
-            (por provincia y partido judicial) como las 177 Oficinas Consulares.
+            Dato obligatorio: sin él el asistente no puede saber desde cuándo se aplica la Ley
+            20/2011 (DICIREG) en tu oficina, y no podrás enviar consultas hasta configurarlo.
+            Están tanto los municipios españoles (por provincia y partido judicial) como las 177
+            Oficinas Consulares.
           </p>
           <div id="oficinaSelectorCuenta"></div>
           <div style="display:flex;gap:8px;margin:8px 0;">
@@ -687,6 +698,7 @@ var chartDiarioInst = null, chartUsuarioInst = null;
 var allAdminUsuarios = [];
 var selectedFolderId = null, folderStack = [];
 var historialCache = [], historialFiltroActual = "";
+var historialModoAdmin = "propio", historialTodosCache = [], historialTodosUsuariosCargados = false, historialTodosTimeout = null;
 var historialHiloMsgs = [], historialHiloLoading = false, historialHiloAbort = null, historialHiloGen = 0;
 var erroresCache = [], erroresCacheSinFiltrar = [], filtroRevisionActual = "pendientes";
 
@@ -1072,9 +1084,95 @@ function setMode(m) {
   if (m==="historial") {
     document.getElementById("historialDetalle").style.display = "none";
     document.getElementById("historialView").style.display = "block";
+    var esAdminUI = currentUser && currentUser.email === ADMIN_EMAIL;
+    document.getElementById("historialAdminToggle").style.display = esAdminUI ? "flex" : "none";
+    if (esAdminUI) { cambiarHistorialModoAdmin(historialModoAdmin); }
+    else {
+      document.getElementById("historialSearch").value = historialFiltroActual;
+      if (!historialCache.length) { cargarHistorialRemoto(); } else { renderHistorialLista(historialFiltroActual); }
+    }
+  }
+}
+
+// ── Vista de admin dentro de "Historial": las propias consultas, o buscar
+// entre las de todos los usuarios (reutiliza buscarHistorialAdmin, ya usado
+// en la pestaña "Errores" → "Buscar en todas las consultas"). El filtro por
+// usuario se autocompleta con <datalist> a partir de adminUsuariosData
+// (nombre + email), cargada una sola vez la primera vez que se entra aquí.
+function cambiarHistorialModoAdmin(modo) {
+  historialModoAdmin = modo;
+  document.getElementById("btnHistorialPropio").classList.toggle("active", modo === "propio");
+  document.getElementById("btnHistorialTodos").classList.toggle("active", modo === "todos");
+  document.getElementById("historialFiltroUsuarioWrap").style.display = modo === "todos" ? "block" : "none";
+  if (modo === "todos") {
+    cargarUsuariosParaAutocompletadoHistorial();
+    buscarHistorialTodos();
+  } else {
     document.getElementById("historialSearch").value = historialFiltroActual;
     if (!historialCache.length) { cargarHistorialRemoto(); } else { renderHistorialLista(historialFiltroActual); }
   }
+}
+
+async function cargarUsuariosParaAutocompletadoHistorial() {
+  if (historialTodosUsuariosCargados) return;
+  historialTodosUsuariosCargados = true;
+  try {
+    if (!adminUsuariosData.length) {
+      var d = await proxyFetch({ action:"getUsuarios", email:currentUser.email });
+      if (d.error) throw new Error(d.error);
+      adminUsuariosData = d.usuarios || [];
+    }
+    document.getElementById("historialUsuariosDatalist").innerHTML = adminUsuariosData.map(function(u) {
+      return "<option value='"+escapeHtml(u.nombre||u.email)+"' label='"+escapeHtml(u.email)+"'></option>"
+        + (u.nombre ? "<option value='"+escapeHtml(u.email)+"' label='"+escapeHtml(u.nombre)+"'></option>" : "");
+    }).join("");
+  } catch(e) { console.warn("Error cargando usuarios para autocompletado:", e.message); }
+}
+
+async function buscarHistorialTodos() {
+  var lista = document.getElementById("historialLista");
+  var texto       = document.getElementById("historialSearch").value.trim();
+  var filtroEmail = document.getElementById("historialFiltroUsuario").value.trim();
+  lista.innerHTML = "<div style='color:#888;font-size:13px;padding:20px 0;text-align:center;'>⏳ Buscando…</div>";
+  try {
+    var d = await proxyFetch({ action:"buscarHistorialAdmin", email:currentUser.email, texto:texto, filtroEmail:filtroEmail, limite:150 });
+    if (d.error) throw new Error(d.error);
+    historialTodosCache = d.entradas || [];
+    renderHistorialListaTodos();
+    if (d.total > d.mostrando) {
+      lista.innerHTML += "<div style='color:#888;font-size:12px;text-align:center;padding:8px 0;'>Mostrando "+d.mostrando+" de "+d.total+" — afina la búsqueda para ver el resto</div>";
+    }
+  } catch(e) {
+    lista.innerHTML = "<div style='color:#c00;font-size:13px;padding:20px 0;text-align:center;'>❌ Error al buscar: "+e.message+"</div>";
+  }
+}
+
+function renderHistorialListaTodos() {
+  var lista = document.getElementById("historialLista");
+  if (!historialTodosCache.length) { lista.innerHTML = "<div style='color:#888;font-size:13px;padding:20px 0;text-align:center;'>Sin resultados. Prueba con menos texto o sin filtro de usuario.</div>"; return; }
+  lista.innerHTML = historialTodosCache.map(function(h,idx){
+    var resumen = h.pregunta.length>100?h.pregunta.substring(0,100)+"…":h.pregunta;
+    return "<div onclick='verHistorialDetalleTodos("+idx+")' style='background:#fff;border:1px solid #e0e0e0;border-radius:9px;padding:12px;margin-bottom:8px;cursor:pointer;'>" +
+      "<div style='font-size:11px;color:#aaa;margin-bottom:4px;'>📅 "+h.fecha+" · 👤 "+escapeHtml(h.nombre||h.email)+"</div>" +
+      "<div style='font-size:13px;color:#1a1a1a;'>"+resumen.replace(/</g,"&lt;")+"</div>" +
+      "</div>";
+  }).join("");
+}
+
+function verHistorialDetalleTodos(idx) {
+  var item = historialTodosCache[idx];
+  if (!item) return;
+  document.getElementById("historialView").style.display = "none";
+  document.getElementById("historialDetalle").style.display = "block";
+  document.getElementById("historialFollowupBar").style.display = "none";
+  var html = "<div style='background:#fff;border:1px solid #e0e0e0;border-radius:9px;padding:16px;'>" +
+    "<div style='font-size:11px;color:#aaa;margin-bottom:8px;'>📅 "+item.fecha+" · 👤 "+escapeHtml(item.nombre||item.email)+" ("+escapeHtml(item.email)+")</div>" +
+    "<div style='background:#185FA5;color:#fff;border-radius:12px 12px 4px 12px;padding:10px 14px;font-size:14px;margin-bottom:10px;white-space:pre-wrap;'>"+item.pregunta.replace(/</g,"&lt;")+"</div>" +
+    "<div style='background:#f8f9fa;border:0.5px solid #e0e0e0;border-radius:12px 12px 12px 4px;padding:10px 14px;font-size:14px;'>"+renderMarkdown(item.respuesta)+"</div>" +
+    (item.docs?"<div style='font-size:11px;color:#888;margin-top:6px;padding:3px 8px;background:#f8f9fa;border-radius:5px;border:1px solid #e0e0e0;'>📚 "+renderMarkdown(item.docs)+"</div>":"") +
+    "</div>";
+  document.getElementById("historialDetalleContenido").innerHTML = html;
+  document.getElementById("historialHilo").innerHTML = "";
 }
 
 async function guardarEnHistorial(pregunta, respuesta, docsUsados) {
@@ -1128,7 +1226,14 @@ function renderHistorialLista(query) {
   }).join("");
 }
 
-function filtrarHistorial() { renderHistorialLista(document.getElementById("historialSearch").value.trim()); }
+function filtrarHistorial() {
+  if (historialModoAdmin === "todos") {
+    if (historialTodosTimeout) clearTimeout(historialTodosTimeout);
+    historialTodosTimeout = setTimeout(buscarHistorialTodos, 350);
+    return;
+  }
+  renderHistorialLista(document.getElementById("historialSearch").value.trim());
+}
 
 async function reportarError(idx, event) {
   if (event) event.stopPropagation();
@@ -1319,6 +1424,8 @@ async function enviarHistorialFollowup() {
 function volverHistorial() {
   document.getElementById("historialDetalle").style.display = "none";
   document.getElementById("historialView").style.display = "block";
+  document.getElementById("historialFollowupBar").style.display = "flex";
+  if (historialModoAdmin === "todos") { renderHistorialListaTodos(); return; }
   document.getElementById("historialSearch").value = historialFiltroActual;
   renderHistorialLista(historialFiltroActual);
 }
@@ -1487,6 +1594,10 @@ async function sendMessage() {
   var input = document.getElementById("chatInput");
   var text = input.value.trim();
   if (!text || loading) return;
+  if (currentUser && currentUser.email !== ADMIN_EMAIL && !userStatus.oficina_municipio) {
+    mostrarModalOficina();
+    return;
+  }
   loading = true;
   var sendBtnEl = document.querySelector(".send-btn");
   if (sendBtnEl) sendBtnEl.disabled = true;
@@ -1743,7 +1854,12 @@ function renderAdminUserList(lista) {
     var catClass = "cat-" + (u.estado === "espera" ? "espera" : u.categoria);
     var catLabel = u.estado === "espera" ? "⏳ espera" : u.categoria;
     var saldoInfo = u.categoria === "colaborador" ? " · <strong style='color:#2e7d32'>" + u.saldo_restante.toFixed(2) + " € saldo</strong>" : u.categoria === "cortesia" ? " · " + u.mensajes_usados + " msgs usados" : "";
-    return "<div class='user-row' style='cursor:pointer;' onclick='seleccionarUsuarioAdmin(\""+escapeHtml(u.email)+"\")'><div><div style='font-weight:500;font-size:13px;'>"+escapeHtml(u.nombre||u.email)+"</div><div class='email'>"+escapeHtml(u.email)+saldoInfo+"</div></div><span class='categoria-pill "+catClass+"'>"+catLabel+"</span></div>";
+    var rcInfo = u.oficina_municipio
+      ? "<div style='font-size:12px;color:#1565c0;'>📍 " + escapeHtml(u.oficina_etiqueta || u.oficina_municipio)
+        + (u.oficina_partido_judicial ? " · Partido judicial de " + escapeHtml(u.oficina_partido_judicial) : "")
+        + (u.oficina_fecha_dicireg ? " · DICIREG desde " + escapeHtml(u.oficina_fecha_dicireg) : "") + "</div>"
+      : "";
+    return "<div class='user-row' style='cursor:pointer;' onclick='seleccionarUsuarioAdmin(\""+escapeHtml(u.email)+"\")'><div><div style='font-weight:500;font-size:13px;'>"+escapeHtml(u.nombre||u.email)+"</div>"+rcInfo+"<div class='email'>"+escapeHtml(u.email)+saldoInfo+"</div></div><span class='categoria-pill "+catClass+"'>"+catLabel+"</span></div>";
   }).join("");
 }
 
