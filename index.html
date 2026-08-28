@@ -38,9 +38,9 @@
     function showCopyToast(msg) {
       var t = document.createElement("div");
       t.textContent = msg;
-      t.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;z-index:9999;";
+      t.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 18px;border-radius:16px;font-size:13px;z-index:9999;max-width:min(92vw,420px);text-align:center;line-height:1.4;box-shadow:0 2px 12px rgba(0,0,0,0.25);";
       document.body.appendChild(t);
-      setTimeout(function(){ t.remove(); }, 2500);
+      setTimeout(function(){ t.remove(); }, msg.length > 60 ? 6000 : 2500);
     }
     function fallbackCopy(text) {
       var el = document.createElement("textarea");
@@ -1566,7 +1566,9 @@ async function enviarHistorialFollowup() {
     if (d.error) throw new Error(d.error);
     if (gen !== historialHiloGen) { loadMiConsumo(); return; }
     historialHiloMsgs.push({ role:"assistant", content:d.reply, docsUsados:d.docsUsados });
-    if (!d.deduplicado) {
+    if (d.deduplicado) {
+      showCopyToast("Parece que tu mensaje se ha enviado dos veces, quizá al pulsar «Enviar» más de una vez. No te preocupes: al ser el mismo mensaje, solo contabilizamos uno.");
+    } else {
       if (d.coste_consulta !== undefined) actualizarCosteUltimaConsulta(d.coste_consulta);
       if (currentUser && currentUser.email !== ADMIN_EMAIL) aplicarConsumoDesdeRespuesta(d);
     }
@@ -1800,7 +1802,7 @@ async function sendMessage() {
         // Reenvío accidental del mismo mensaje (doble clic / reintento tras
         // error) dentro de la ventana: se muestra la respuesta pero NO se
         // guarda otra vez en el historial ni se descuenta nada.
-        showCopyToast("Este mensaje ya lo habías enviado — no se ha vuelto a cobrar.");
+        showCopyToast("Parece que tu mensaje se ha enviado dos veces, quizá al pulsar «Enviar» más de una vez. No te preocupes: al ser el mismo mensaje, solo contabilizamos uno.");
       } else {
         guardarEnHistorial(text, result.reply, result.docsUsados);
         if (result.coste_consulta !== undefined) actualizarCosteUltimaConsulta(result.coste_consulta);
