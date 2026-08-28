@@ -242,7 +242,12 @@
     .chat-btn { padding: 6px 14px; border-radius: 7px; border: 1.5px solid #185FA5; background: #E6F1FB; color: #185FA5; cursor: pointer; font-size: 12px; font-weight: 600; }
     .chat-btn:active { opacity: 0.75; }
     @media (prefers-color-scheme: dark) { .chat-btn { background: #1a3a5c; color: #90CAF9; border-color: #90CAF9; } }
-    .historial-navbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #f8f9fa; padding: 8px 0 10px; margin-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+    /* Vista de detalle del historial: barra de navegación fija arriba + cuerpo con scroll propio */
+    #panel-historial { padding: 16px; }
+    #panel-historial.detalle { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+    #panel-historial.detalle #historialDetalle { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+    #historialDetalleScroll { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; }
+    .historial-navbar { flex-shrink: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #f8f9fa; padding: 12px 16px; border-bottom: 1px solid #e0e0e0; }
     .hnav-btn { padding: 6px 14px; border-radius: 7px; border: 1px solid #185FA5; background: #E6F1FB; color: #185FA5; cursor: pointer; font-size: 13px; font-weight: 600; }
     .hnav-btn:disabled { opacity: 0.4; cursor: default; }
     .hnav-pos { font-size: 12px; color: #888; }
@@ -469,7 +474,7 @@
     </div>
 
     <!-- Historial -->
-    <div id="panel-historial" class="panel" style="display:none;padding:16px;">
+    <div id="panel-historial" class="panel" style="display:none;">
       <div id="historialView">
         <div id="historialAdminToggle" style="display:none;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
           <button class="mode-btn active" id="btnHistorialPropio" onclick="cambiarHistorialModoAdmin('propio')">👤 Mis consultas</button>
@@ -496,12 +501,14 @@
           <button onclick="historialNav(-1)" class="hnav-btn" id="hnavPrev">◀ Anterior</button>
           <button onclick="historialNav(1)" class="hnav-btn" id="hnavNext">Siguiente ▶</button>
         </div>
-        <div id="historialDetalleContenido"></div>
-        <div id="historialHilo" style="margin-top:12px;"></div>
-        <div id="historialFollowupBar" class="input-bar" style="margin-top:12px;border:0.5px solid #e0e0e0;border-radius:9px;">
-          <textarea id="historialFollowupInput" rows="2" style="flex:1" placeholder="¿Alguna duda sobre esta respuesta? Pregunta aquí…" onkeydown="handleHistorialFollowupKey(event)"></textarea>
-          <button class="send-btn" id="historialFollowupBtn" onclick="enviarHistorialFollowup()">➤</button>
-          <button id="historialFollowupCancelBtn" onclick="cancelarHistorialFollowup()" style="display:none;padding:6px 10px;border-radius:8px;background:#fff0f0;border:1.5px solid #c62828;color:#c62828;cursor:pointer;font-size:13px;font-weight:600;">✕</button>
+        <div id="historialDetalleScroll">
+          <div id="historialDetalleContenido"></div>
+          <div id="historialHilo" style="margin-top:12px;"></div>
+          <div id="historialFollowupBar" class="input-bar" style="margin-top:12px;border:0.5px solid #e0e0e0;border-radius:9px;">
+            <textarea id="historialFollowupInput" rows="2" style="flex:1" placeholder="¿Alguna duda sobre esta respuesta? Pregunta aquí…" onkeydown="handleHistorialFollowupKey(event)"></textarea>
+            <button class="send-btn" id="historialFollowupBtn" onclick="enviarHistorialFollowup()">➤</button>
+            <button id="historialFollowupCancelBtn" onclick="cancelarHistorialFollowup()" style="display:none;padding:6px 10px;border-radius:8px;background:#fff0f0;border:1.5px solid #c62828;color:#c62828;cursor:pointer;font-size:13px;font-weight:600;">✕</button>
+          </div>
         </div>
       </div>
     </div>
@@ -789,8 +796,8 @@ function historialNav(delta) {
   if (nuevo < 0 || nuevo >= total) return;
   if (historialModoAdmin === "todos") verHistorialDetalleTodos(nuevo);
   else verHistorialDetalle(nuevo);
-  var panel = document.getElementById("panel-historial");
-  if (panel) panel.scrollTop = 0;
+  var sc = document.getElementById("historialDetalleScroll");
+  if (sc) sc.scrollTop = 0;
 }
 var erroresCache = [], erroresCacheSinFiltrar = [], filtroRevisionActual = "pendientes";
 
@@ -1183,6 +1190,7 @@ function setMode(m) {
   if (m==="historial") {
     document.getElementById("historialDetalle").style.display = "none";
     document.getElementById("historialView").style.display = "block";
+    var _ph=document.getElementById("panel-historial"); _ph.classList.remove("detalle"); _ph.style.display="block";
     var esAdminUI = currentUser && currentUser.email === ADMIN_EMAIL;
     document.getElementById("historialAdminToggle").style.display = esAdminUI ? "flex" : "none";
     if (esAdminUI) { cambiarHistorialModoAdmin(historialModoAdmin); }
@@ -1251,17 +1259,17 @@ function renderDuplicadosHistorial(grupos) {
     "<div style='font-size:13px;font-weight:600;color:#e65100;margin-bottom:8px;'>🔁 " + grupos.length + " posible(s) envío(s) duplicado(s)</div>" +
     grupos.map(function(g, i) {
       var preg = escapeHtml(g.pregunta.length > 160 ? g.pregunta.slice(0,160) + "…" : g.pregunta);
-      function fila(fecha, tieneResp, esConservar) {
+      function fila(fecha, tieneResp, sugerida) {
         return "<div style='display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;padding:4px 0;'>" +
-          "<span>" + (esConservar ? "✔️ <strong>conservar</strong>" : "🗑️ eliminar") + " · " + escapeHtml(fecha) + " · " + (tieneResp ? "con respuesta" : "<span style='color:#c62828'>sin respuesta</span>") + "</span>" +
-          (esConservar ? "" : "<button class='btn-error' onclick=\"resolverDuplicado('" + encodeURIComponent(g.email) + "','" + encodeURIComponent(fecha) + "'," + i + ")\">Quitar y reembolsar</button>") +
+          "<span>" + escapeHtml(fecha) + " · " + (tieneResp ? "con respuesta" : "<span style='color:#c62828'>sin respuesta</span>") + (sugerida ? " · <em style='color:#e65100'>sugerida para quitar</em>" : "") + "</span>" +
+          "<button class='btn-error' onclick=\"resolverDuplicado('" + encodeURIComponent(g.email) + "','" + encodeURIComponent(fecha) + "'," + i + ")\">Quitar y reembolsar</button>" +
           "</div>";
       }
       return "<div id='dup-" + i + "' style='border-top:1px solid #ffe0a3;padding:8px 0;'>" +
-        "<div style='font-size:11px;color:#888;'>👤 " + escapeHtml(g.nombre || g.email) + " · separados por " + g.segundos + " s</div>" +
+        "<div style='font-size:11px;color:#888;'>👤 " + escapeHtml(g.nombre || g.email) + " · separados por " + g.segundos + " s · elimina <strong>una</strong> de las dos:</div>" +
         "<div style='font-size:12px;color:#1a1a1a;margin:4px 0;'>" + preg + "</div>" +
-        fila(g.conservar_fecha, g.conservar_resp, true) +
-        fila(g.eliminar_fecha, g.eliminar_resp, false) +
+        fila(g.conservar_fecha, g.conservar_resp, false) +
+        fila(g.eliminar_fecha, g.eliminar_resp, true) +
         "<div class='dup-status' style='font-size:12px;'></div>" +
         "</div>";
     }).join("") +
@@ -1318,7 +1326,8 @@ function verHistorialDetalleTodos(idx) {
   var item = historialTodosCache[idx];
   if (!item) return;
   document.getElementById("historialView").style.display = "none";
-  document.getElementById("historialDetalle").style.display = "block";
+  document.getElementById("historialDetalle").style.display = "flex";
+  var _ph=document.getElementById("panel-historial"); _ph.classList.add("detalle"); _ph.style.display="flex";
   document.getElementById("historialFollowupBar").style.display = "none";
   var html = "<div style='background:#fff;border:1px solid #e0e0e0;border-radius:9px;padding:16px;'>" +
     "<div style='font-size:11px;color:#aaa;margin-bottom:8px;'>📅 "+item.fecha+" · 👤 "+escapeHtml(item.nombre||item.email)+" ("+escapeHtml(item.email)+")</div>" +
@@ -1475,7 +1484,9 @@ function verHistorialDetalle(idx) {
   var item = filtrados[idx];
   if (!item) return;
   document.getElementById("historialView").style.display = "none";
-  document.getElementById("historialDetalle").style.display = "block";
+  document.getElementById("historialDetalle").style.display = "flex";
+  var _ph=document.getElementById("panel-historial"); _ph.classList.add("detalle"); _ph.style.display="flex";
+  document.getElementById("historialFollowupBar").style.display = "flex";
   var accionesHtml = (function() {
     var copiarBtn = "<button class='chat-btn' onclick='copiarHistorialDetalle("+idx+")'>📋 Copiar</button> <button class='chat-btn' onclick='printHistorialDetalle("+idx+")'>🖨️ Imprimir</button>";
     if (item.revision === "PENDIENTE") return copiarBtn + " <button class='btn-error' disabled style='opacity:0.5;cursor:default;'>⏳ En revisión</button>";
@@ -1590,6 +1601,7 @@ async function enviarHistorialFollowup() {
 
 function volverHistorial() {
   historialDetalleIdx = -1;
+  var _ph=document.getElementById("panel-historial"); _ph.classList.remove("detalle"); _ph.style.display="block";
   document.getElementById("historialDetalle").style.display = "none";
   document.getElementById("historialView").style.display = "block";
   document.getElementById("historialFollowupBar").style.display = "flex";
