@@ -591,6 +591,12 @@
             <div id="cacheStats" style="margin-top:8px;font-size:13px;color:#555;"></div>
           </div>
           <div class="admin-card">
+            <h3>📨 Webhook de Telegram</h3>
+            <p>Re-registra en Telegram el webhook apuntándolo a la URL de backend que usa esta app ahora mismo. Úsalo solo si se ha cambiado el deployment del backend.</p>
+            <button class="btn-secondary" onclick="reapuntarWebhookTelegram()">🔗 Reapuntar webhook a la URL actual</button>
+            <div id="webhookStatus" style="margin-top:8px;font-size:13px;color:#555;word-break:break-all;"></div>
+          </div>
+          <div class="admin-card">
             <h3>🔗 Anthropic Console</h3>
             <p>Consulta tu saldo, créditos y consumo de la API de Anthropic.</p>
             <a href="https://console.anthropic.com/settings/billing" target="_blank" class="btn-primary" style="text-decoration:none;display:inline-block;">💳 Ver facturación</a>
@@ -1775,6 +1781,18 @@ async function subirArchivo() {
     if (tipoSelect) tipoSelect.value = "";
   } catch(e){status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>";}
   btn.disabled=false;
+}
+
+async function reapuntarWebhookTelegram() {
+  var el = document.getElementById("webhookStatus");
+  el.innerHTML = "⏳ Re-registrando…";
+  try {
+    var d = await proxyFetch({ action:"reapuntarWebhookTelegram", email:currentUser.email, webAppUrl: BRIDGE_URL });
+    if (d.error) throw new Error(d.error);
+    el.innerHTML = d.ok
+      ? "✅ Webhook actualizado a:<br><code>" + escapeHtml(d.webhook_url || "") + "</code>"
+      : "⚠️ Telegram respondió sin éxito: <code>" + escapeHtml(JSON.stringify(d.telegram_response||{})) + "</code>";
+  } catch(e) { el.innerHTML = "❌ Error: " + escapeHtml(e.message); }
 }
 
 async function loadCacheStats() {
