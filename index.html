@@ -647,6 +647,7 @@
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
               <button class="btn-primary" onclick="activarSiguienteUsuario()">✅ Activar siguiente en espera</button>
               <button class="btn-secondary" onclick="verListaEspera()">⏳ Ver lista de espera</button>
+              <button class="btn-secondary" id="btnReactivarPenumbra" style="display:none;border-color:#5e35b1;color:#5e35b1;" onclick="reactivarPenumbra()">🌒 Reactivar penumbra</button>
             </div>
             <div id="cupoStatus" style="margin-top:8px;"></div>
             <div id="listaEsperaContainer" style="display:none;margin-top:12px;"></div>
@@ -1893,6 +1894,14 @@ function renderCupoStats(d) {
   var el = document.getElementById("cupoStats");
   if (!el) return;
   var s = d.stats;
+  var btnPen = document.getElementById("btnReactivarPenumbra");
+  if (btnPen) {
+    var libres = d.plazas_libres || 0;
+    btnPen.style.display = (s && s.expirados > 0) ? "" : "none";
+    btnPen.textContent = "🌒 Reactivar penumbra (" + ((s && s.expirados) || 0) + ")";
+    btnPen.disabled = libres <= 0;
+    btnPen.title = libres <= 0 ? "No hay plazas libres en el cupo" : "";
+  }
   if (!s) { el.innerHTML = ""; return; }
   function chip(lbl, val, cls, key) {
     var num = (typeof val === "number") ? val : parseInt(val, 10);
@@ -2033,7 +2042,7 @@ function seleccionarUsuarioAdmin(email) {
   var saldoLinea = u.categoria === "colaborador" ? "<br>💰 Crédito: "+u.credito_euros.toFixed(2)+"€ · Gastado: "+u.credito_gastado.toFixed(2)+"€ · <strong>Saldo: "+u.saldo_restante.toFixed(2)+"€</strong>" : u.categoria === "cortesia" ? "<br>💬 Mensajes usados: "+u.mensajes_usados+" / "+3 : "";
   document.getElementById("userDetailInfo").innerHTML = "📧 "+escapeHtml(u.email)+"<br>📂 Categoría: <strong>"+escapeHtml(u.categoria)+"</strong> · Estado: <strong>"+escapeHtml(u.estado)+"</strong>"+saldoLinea+"<br>📊 Tokens: "+u.tokens_input.toLocaleString()+" entrada · "+u.tokens_output.toLocaleString()+" salida · Coste real: "+u.coste_total.toFixed(4)+"€"+(u.motivo_bloqueo ? "<br>🚫 Motivo bloqueo: "+escapeHtml(u.motivo_bloqueo) : "");
   var acciones = "";
-  if (u.estado === "espera") acciones += "<button class='btn-success' onclick='accionAdmin(\"activar\")'>✅ Activar</button> ";
+  if (u.estado === "espera" || u.estado === "expirado") acciones += "<button class='btn-success' onclick='accionAdmin(\"activar\")'>✅ Activar</button> ";
   if (u.categoria !== "vip") acciones += "<button class='btn-primary' onclick='accionAdmin(\"vip\")' style='background:#7b1fa2;'>⭐ Hacer VIP</button> ";
   if (u.categoria !== "bloqueado") acciones += "<button class='btn-danger' onclick='pedirMotivoBloqueo()'>🚫 Bloquear</button> ";
   else acciones += "<button class='btn-success' onclick='mostrarDesbloqueo()'>🔓 Desbloquear</button> ";
@@ -2100,6 +2109,14 @@ async function accionFusion(principal, absorbida) {
 async function activarSiguienteUsuario() {
   var status=document.getElementById("cupoStatus"); status.innerHTML="<div class='status-msg status-info'>⏳ Activando…</div>";
   try{ var d=await proxyFetch({action:"activarSiguiente",email:currentUser.email}); if(d.error)throw new Error(d.error); status.innerHTML=d.ok?"<div class='status-msg status-ok'>✅ "+d.msg+"</div>":"<div class='status-msg status-err'>⚠️ "+d.msg+"</div>"; await loadAdminUsuarios(); }
+  catch(e){status.innerHTML="<div class='status-msg status-err'>❌ "+e.message+"</div>";}
+}
+
+async function reactivarPenumbra() {
+  var n = (adminUsuariosData||[]).filter(function(u){ return u.estado === "expirado"; }).length;
+  if (!confirm("Devolver a cortesía a los "+n+" usuario(s) en penumbra (mientras haya sitio en el cupo). ¿Continuar?")) return;
+  var status=document.getElementById("cupoStatus"); status.innerHTML="<div class='status-msg status-info'>⏳ Reactivando…</div>";
+  try{ var d=await proxyFetch({action:"reactivarPenumbra",email:currentUser.email}); if(d.error)throw new Error(d.error); status.innerHTML="<div class='status-msg "+(d.reactivados?"status-ok":"status-err")+"'>"+(d.reactivados?"✅ ":"⚠️ ")+d.msg+"</div>"; await loadAdminUsuarios(); }
   catch(e){status.innerHTML="<div class='status-msg status-err'>❌ "+e.message+"</div>";}
 }
 
