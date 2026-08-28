@@ -471,10 +471,12 @@
     <!-- Historial -->
     <div id="panel-historial" class="panel" style="display:none;padding:16px;">
       <div id="historialView">
-        <div id="historialAdminToggle" style="display:none;gap:8px;margin-bottom:10px;">
+        <div id="historialAdminToggle" style="display:none;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
           <button class="mode-btn active" id="btnHistorialPropio" onclick="cambiarHistorialModoAdmin('propio')">👤 Mis consultas</button>
           <button class="mode-btn" id="btnHistorialTodos" onclick="cambiarHistorialModoAdmin('todos')">🗂️ Todos los usuarios</button>
+          <button class="mode-btn" id="btnHistorialDuplicados" onclick="buscarDuplicadosHistorial()">🔁 Buscar duplicados</button>
         </div>
+        <div id="historialDuplicadosBox" style="display:none;margin-bottom:12px;"></div>
         <div id="historialFiltroUsuarioWrap" style="display:none;margin-bottom:10px;">
           <input type="text" id="historialFiltroUsuario" list="historialUsuariosDatalist" placeholder="Filtrar por usuario (nombre o email)…" oninput="filtrarHistorial()"
             style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;"/>
@@ -699,6 +701,10 @@
               <div>
                 <label style="font-size:11px;color:#888;display:block;margin-bottom:4px;">Factor margen crédito (0-1)</label>
                 <input type="number" id="cfgMargenFactor" style="width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;" min="0.1" max="1" step="0.05"/>
+              </div>
+              <div>
+                <label style="font-size:11px;color:#888;display:block;margin-bottom:4px;">Ventana anti-duplicado (segundos)</label>
+                <input type="number" id="cfgDedupVentana" style="width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;" min="10" max="600" step="10"/>
               </div>
             </div>
             <button class="btn-primary" onclick="guardarConfig()">💾 Guardar configuración</button>
@@ -1222,6 +1228,62 @@ async function cargarUsuariosParaAutocompletadoHistorial() {
   } catch(e) { console.warn("Error cargando usuarios para autocompletado:", e.message); }
 }
 
+async function buscarDuplicadosHistorial() {
+  var box = document.getElementById("historialDuplicadosBox");
+  box.style.display = "block";
+  box.innerHTML = "<div style='color:#888;font-size:13px;'>⏳ Analizando el historial…</div>";
+  try {
+    var d = await proxyFetch({ action:"duplicadosHistorial", email:currentUser.email });
+    if (d.error) throw new Error(d.error);
+    renderDuplicadosHistorial(d.grupos || []);
+  } catch(e) {
+    box.innerHTML = "<div style='color:#c00;font-size:13px;'>❌ " + escapeHtml(e.message) + "</div>";
+  }
+}
+
+function renderDuplicadosHistorial(grupos) {
+  var box = document.getElementById("historialDuplicadosBox");
+  if (!grupos.length) {
+    box.innerHTML = "<div style='background:#e8f5e9;border:1px solid #c8e6c9;border-radius:8px;padding:10px 12px;font-size:13px;color:#2e7d32;'>✅ No se han encontrado envíos duplicados accidentales.</div>";
+    return;
+  }
+  box.innerHTML = "<div style='background:#fff8e1;border:1px solid #ffe0a3;border-radius:9px;padding:12px;'>" +
+    "<div style='font-size:13px;font-weight:600;color:#e65100;margin-bottom:8px;'>🔁 " + grupos.length + " posible(s) envío(s) duplicado(s)</div>" +
+    grupos.map(function(g, i) {
+      var preg = escapeHtml(g.pregunta.length > 160 ? g.pregunta.slice(0,160) + "…" : g.pregunta);
+      function fila(fecha, tieneResp, esConservar) {
+        return "<div style='display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;padding:4px 0;'>" +
+          "<span>" + (esConservar ? "✔️ <strong>conservar</strong>" : "🗑️ eliminar") + " · " + escapeHtml(fecha) + " · " + (tieneResp ? "con respuesta" : "<span style='color:#c62828'>sin respuesta</span>") + "</span>" +
+          (esConservar ? "" : "<button class='btn-error' onclick=\"resolverDuplicado('" + encodeURIComponent(g.email) + "','" + encodeURIComponent(fecha) + "'," + i + ")\">Quitar y reembolsar</button>") +
+          "</div>";
+      }
+      return "<div id='dup-" + i + "' style='border-top:1px solid #ffe0a3;padding:8px 0;'>" +
+        "<div style='font-size:11px;color:#888;'>👤 " + escapeHtml(g.nombre || g.email) + " · separados por " + g.segundos + " s</div>" +
+        "<div style='font-size:12px;color:#1a1a1a;margin:4px 0;'>" + preg + "</div>" +
+        fila(g.conservar_fecha, g.conservar_resp, true) +
+        fila(g.eliminar_fecha, g.eliminar_resp, false) +
+        "<div class='dup-status' style='font-size:12px;'></div>" +
+        "</div>";
+    }).join("") +
+    "</div>";
+}
+
+async function resolverDuplicado(emailEnc, fechaEnc, i) {
+  var email = decodeURIComponent(emailEnc), fecha = decodeURIComponent(fechaEnc);
+  if (!confirm("Se eliminará esa entrada del Historial y su fila de Consumo, y se reembolsará al usuario (un mensaje de cortesía o el importe en €). ¿Continuar?")) return;
+  var cont = document.querySelector("#dup-" + i + " .dup-status");
+  if (cont) cont.innerHTML = "⏳ Procesando…";
+  try {
+    var d = await proxyFetch({ action:"resolverDuplicadoHistorial", email:currentUser.email, email_usuario:email, fecha:fecha, descontar:"1" });
+    if (d.error) throw new Error(d.error);
+    if (cont) cont.innerHTML = "<span style='color:#2e7d32;'>✅ " + escapeHtml(d.msg) + "</span>";
+    var grp = document.getElementById("dup-" + i);
+    if (grp) grp.querySelectorAll("button").forEach(function(b){ b.disabled = true; });
+  } catch(e) {
+    if (cont) cont.innerHTML = "<span style='color:#c62828;'>❌ " + escapeHtml(e.message) + "</span>";
+  }
+}
+
 async function buscarHistorialTodos() {
   var lista = document.getElementById("historialLista");
   var texto       = document.getElementById("historialSearch").value.trim();
@@ -1269,8 +1331,14 @@ function verHistorialDetalleTodos(idx) {
   actualizarNavHistorial(idx);
 }
 
+var _ultimoHistorialGuardado = { texto: "", ts: 0 };
 async function guardarEnHistorial(pregunta, respuesta, docsUsados) {
   if (!currentUser) return;
+  // Red de seguridad extra al margen del backend: si se acaba de guardar
+  // exactamente esta misma pregunta hace muy poco, no la duplicamos.
+  var norm = (pregunta || "").trim().replace(/\s+/g, " ").toLowerCase();
+  if (norm && norm === _ultimoHistorialGuardado.texto && (Date.now() - _ultimoHistorialGuardado.ts) < 120000) return;
+  _ultimoHistorialGuardado = { texto: norm, ts: Date.now() };
   try {
     await proxyFetch({ action:"guardarHistorial", email:currentUser.email, nombre:currentUser.name, pregunta:pregunta, respuesta:respuesta, docs:docsUsados||"" });
     historialCache.unshift({ fecha:new Date().toLocaleString("es-ES"), pregunta, respuesta, docs:docsUsados||"" });
@@ -1498,8 +1566,10 @@ async function enviarHistorialFollowup() {
     if (d.error) throw new Error(d.error);
     if (gen !== historialHiloGen) { loadMiConsumo(); return; }
     historialHiloMsgs.push({ role:"assistant", content:d.reply, docsUsados:d.docsUsados });
-    if (d.coste_consulta !== undefined) actualizarCosteUltimaConsulta(d.coste_consulta);
-    if (currentUser && currentUser.email !== ADMIN_EMAIL) aplicarConsumoDesdeRespuesta(d);
+    if (!d.deduplicado) {
+      if (d.coste_consulta !== undefined) actualizarCosteUltimaConsulta(d.coste_consulta);
+      if (currentUser && currentUser.email !== ADMIN_EMAIL) aplicarConsumoDesdeRespuesta(d);
+    }
     loadMiConsumo();
   } catch(e) {
     if (gen !== historialHiloGen) return;
@@ -1726,11 +1796,16 @@ async function sendMessage() {
     var result = await callBridge(messages, abortController.signal);
     if (result) {
       messages.push({ role:"assistant", content:result.reply, docsUsados:result.docsUsados, docsExtra:result.docsExtra });
-      guardarEnHistorial(text, result.reply, result.docsUsados);
-      if (result.coste_consulta !== undefined) {
-        actualizarCosteUltimaConsulta(result.coste_consulta);
+      if (result.deduplicado) {
+        // Reenvío accidental del mismo mensaje (doble clic / reintento tras
+        // error) dentro de la ventana: se muestra la respuesta pero NO se
+        // guarda otra vez en el historial ni se descuenta nada.
+        showCopyToast("Este mensaje ya lo habías enviado — no se ha vuelto a cobrar.");
+      } else {
+        guardarEnHistorial(text, result.reply, result.docsUsados);
+        if (result.coste_consulta !== undefined) actualizarCosteUltimaConsulta(result.coste_consulta);
+        if (currentUser && currentUser.email !== ADMIN_EMAIL) aplicarConsumoDesdeRespuesta(result);
       }
-      if (currentUser && currentUser.email !== ADMIN_EMAIL) aplicarConsumoDesdeRespuesta(result);
       loadMiConsumo();
     }
   } catch(e) {
@@ -2208,6 +2283,7 @@ async function cargarConfigAdmin() {
     if(d.config.CUPO_MAX) document.getElementById("cfgCupoMax").value=d.config.CUPO_MAX;
     if(d.config.MENSAJES_CORTESIA) document.getElementById("cfgMensajesCortesia").value=d.config.MENSAJES_CORTESIA;
     if(d.config.MARGEN_FACTOR) document.getElementById("cfgMargenFactor").value=d.config.MARGEN_FACTOR;
+    if(d.config.DEDUP_VENTANA_SEG) document.getElementById("cfgDedupVentana").value=d.config.DEDUP_VENTANA_SEG;
   }catch(e){}
 }
 
@@ -2961,11 +3037,12 @@ function verRevision(nota, decision, motivo) {
 }
 async function guardarConfig() {
   var status=document.getElementById("configStatus"); status.innerHTML="<div class='status-msg status-info'>⏳ Guardando…</div>";
-  var cupo=document.getElementById("cfgCupoMax").value, mensajes=document.getElementById("cfgMensajesCortesia").value, margen=document.getElementById("cfgMargenFactor").value;
+  var cupo=document.getElementById("cfgCupoMax").value, mensajes=document.getElementById("cfgMensajesCortesia").value, margen=document.getElementById("cfgMargenFactor").value, dedup=document.getElementById("cfgDedupVentana").value;
   try{
     if(cupo) await proxyFetch({action:"setConfig",email:currentUser.email,clave:"CUPO_MAX",valor:cupo});
     if(mensajes) await proxyFetch({action:"setConfig",email:currentUser.email,clave:"MENSAJES_CORTESIA",valor:mensajes});
     if(margen) await proxyFetch({action:"setConfig",email:currentUser.email,clave:"MARGEN_FACTOR",valor:margen});
+    if(dedup) await proxyFetch({action:"setConfig",email:currentUser.email,clave:"DEDUP_VENTANA_SEG",valor:dedup});
     status.innerHTML="<div class='status-msg status-ok'>✅ Configuración guardada correctamente.</div>";
     await loadAdminUsuarios();
   }catch(e){status.innerHTML="<div class='status-msg status-err'>❌ Error: "+e.message+"</div>";}
