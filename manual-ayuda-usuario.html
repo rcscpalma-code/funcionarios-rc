@@ -69,7 +69,7 @@
       <path d="M112 85 Q112 62 92 62 Q82 62 76 70 L82 75 Q86 68 92 68 Q106 68 106 85 Z" fill="#4CAF50"/>
     </svg>
     <h1>Funcionarios RC</h1>
-    <p>Guía de usuario · Versión 2.3 · Agosto 2026</p>
+    <p>Guía de usuario · Versión 2.4 · Agosto 2026</p>
   </div>
 
   <!-- ÍNDICE -->
@@ -123,13 +123,22 @@
   <h3>Tipos de cuenta</h3>
   <table>
     <tr><th>Categoría</th><th>Acceso</th><th>Descripción</th></tr>
-    <tr><td>🎁 Cortesía</td><td>3 mensajes gratuitos</td><td>Se asigna automáticamente al registrarte. Permite probar la aplicación.</td></tr>
-    <tr><td>💚 Colaborador</td><td>Según saldo disponible</td><td>Acceso continuado mediante aportación voluntaria. El saldo se descuenta según el consumo real de cada consulta.</td></tr>
-    <tr><td>⭐ VIP</td><td>Ilimitado</td><td>Asignado manualmente por el administrador.</td></tr>
+    <tr><td>🎁 Cortesía</td><td>3 mensajes gratuitos</td><td>Se asigna automáticamente al registrarte. Permite probar la aplicación. Ocupa una de las plazas del cupo beta.</td></tr>
+    <tr><td>💚 Colaborador</td><td>Según saldo disponible</td><td>Acceso continuado mediante aportación voluntaria. El saldo se descuenta según el consumo real de cada consulta. <strong>No ocupa plaza del cupo beta.</strong></td></tr>
+    <tr><td>⭐ VIP</td><td>Ilimitado</td><td>Asignado manualmente por el administrador. No ocupa plaza del cupo beta.</td></tr>
   </table>
 
   <h3>Cómo pasar a Colaborador</h3>
   <p>Cuando agotas los mensajes de cortesía, la aplicación te muestra las instrucciones para realizar una aportación voluntaria por transferencia bancaria. Los importes sugeridos son 5 €, 10 € o 15 €. Tras confirmar el pago, el administrador activará tu acceso como colaborador.</p>
+  <p>Al pasar a colaborador, la plaza del cupo beta que ocupabas queda libre para el siguiente usuario de la lista de espera.</p>
+
+  <h3>Una sola cuenta por persona</h3>
+  <p>Cada persona puede usar la aplicación con <strong>una única cuenta de Google</strong>. No se permite registrarse con varias cuentas para conseguir más mensajes de cortesía.</p>
+  <ul>
+    <li>Si el sistema detecta que una cuenta es una variante de otra ya registrada, no la deja entrar.</li>
+    <li>En concreto, <strong>no se admiten los alias de Gmail</strong>: ni los que añaden un «+» a la dirección (<code>tunombre+loquesea@gmail.com</code>), ni los que solo cambian los puntos (<code>tu.nombre@gmail.com</code> es la misma cuenta que <code>tunombre@gmail.com</code>).</li>
+    <li>Entra siempre con tu cuenta principal, la de siempre.</li>
+  </ul>
 
   <!-- 3. PANTALLA PRINCIPAL -->
   <h2 id="s3">3. La pantalla principal</h2>
@@ -303,13 +312,16 @@
   <h3>¿Puedo usar la aplicación desde el móvil?</h3>
   <p>Sí. La aplicación es responsive y se adapta a cualquier tamaño de pantalla.</p>
 
+  <h3>¿Puedo entrar con más de una cuenta de Google?</h3>
+  <p>No. Cada persona usa una única cuenta. El sistema rechaza las cuentas que son una variante de otra ya registrada y, en particular, los alias de Gmail: los que llevan un «+» (<code>tunombre+algo@gmail.com</code>) y los que solo cambian los puntos (para Gmail, <code>tu.nombre@gmail.com</code> y <code>tunombre@gmail.com</code> son la misma cuenta). Entra siempre con tu cuenta habitual.</p>
+
   <h3>¿Qué hago si me dice que el cupo está lleno?</h3>
-  <p>Quedarás automáticamente en lista de espera. Cuando se libere una plaza (por baja de otro usuario, o por inactividad de otro — ver pregunta siguiente), se te activará automáticamente por orden de registro.</p>
+  <p>Quedarás automáticamente en lista de espera. Cuando se libere una plaza (por baja de otro usuario, porque otro usuario ha pasado a colaborar económicamente, o por inactividad de otro — ver pregunta siguiente), se te activará automáticamente por orden de registro.</p>
   <p>Si no quieres esperar, puedes colaborar económicamente con una aportación voluntaria desde el propio panel de lista de espera: el administrador activará tu acceso sin tener que esperar a que te llegue el turno.</p>
 
   <h3>¿Puedo perder mi plaza si dejo de usar la aplicación?</h3>
   <p>Solo si se dan <strong>dos condiciones a la vez</strong>: (1) llevas más de 72 horas sin hacer ninguna consulta, y (2) hay otros usuarios esperando plaza en ese momento. Si no hay nadie en lista de espera, tu plaza no corre ningún riesgo por inactividad, sin importar cuánto tiempo pase.</p>
-  <p>Esto solo afecta a cuentas de categoría <strong>Cortesía</strong> — nunca a Colaboradores ni a VIP. Si tu plaza pasa temporalmente a la cola, no se pierde nada de tu historial ni de tus datos: en cuanto vuelvas a entrar, tu cuenta se reactiva automáticamente (o quedas en lista de espera si el cupo sigue lleno) y recuperas tu histórico de consultas como si nunca te hubieras ido.</p>
+  <p>Esto solo afecta a cuentas de categoría <strong>Cortesía</strong> — nunca a Colaboradores ni a VIP. Si tu plaza pasa temporalmente a la cola, no se pierde nada de tu historial ni de tus datos: tu cuenta queda simplemente <strong>pendiente de que vuelvas a entrar</strong>. En cuanto lo hagas, se reactiva automáticamente (o quedas en lista de espera si el cupo sigue lleno) y recuperas tu histórico de consultas como si nunca te hubieras ido. El administrador también puede devolverte el acceso él mismo si ve que hay plazas libres.</p>
 
   <h3>¿Por qué hay un cupo o lista de espera si somos funcionarios del mismo cuerpo?</h3>
   <p>La aplicación está todavía en fase de desarrollo y pruebas. Con un número reducido de usuarios podemos observar cómo se comporta el sistema, pero aún no sabemos cómo evolucionará el consumo de recursos ni el coste económico real si se abriera de golpe a más de mil usuarios. Por eso se avanza por fases: el cupo se va ampliando progresivamente a medida que se confirma que el sistema lo soporta bien, hasta que en algún momento la aplicación pueda abrirse sin restricción de plazas.</p>
