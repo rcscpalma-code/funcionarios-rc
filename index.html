@@ -219,6 +219,9 @@
     .cupo-stats .st.big { background: #e8f1fb; border-color: #cfe2f6; color: #1a4a7a; }
     .cupo-stats .st.big b { color: #185FA5; }
     .cupo-stats .st.warn b { color: #c62828; }
+    .cupo-stats .st.clickable { cursor: pointer; transition: background .12s, border-color .12s; }
+    .cupo-stats .st.clickable:hover { border-color: #185FA5; background: #e8f1fb; }
+    .cat-row-sel:hover { background: #f4f8fc; }
     .cupo-stats .sep { flex-basis: 100%; height: 0; }
     @media (prefers-color-scheme: dark) {
       .cupo-stats .st { background: #1b2a38; color: #b9c7d4; border-color: #33475a; }
@@ -226,6 +229,8 @@
       .cupo-stats .st.big { background: #15304b; border-color: #2e5f8a; color: #bcd8f2; }
       .cupo-stats .st.big b { color: #90CAF9; }
       .cupo-stats .st.warn b { color: #ff8a80; }
+      .cupo-stats .st.clickable:hover { border-color: #90CAF9; background: #15304b; }
+      .cat-row-sel:hover { background: #12283d; }
     }
     .user-list { max-height: 260px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; background: #fff; }
     .user-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 0.5px solid #f0f0f0; font-size: 13px; }
@@ -1866,6 +1871,7 @@ function renderChartDiario(dias) {
 function toggleChartDiario() { var w=document.getElementById("chartDiario").parentElement; w.style.display=w.style.display==="none"?"block":"none"; }
 
 var adminUsuariosData = [];
+var adminVetadasData = [];
 var adminUsuarioSeleccionado = null;
 
 async function loadAdminUsuarios() {
@@ -1875,6 +1881,7 @@ async function loadAdminUsuarios() {
     var d = await proxyFetch({ action:"getUsuarios", email:currentUser.email });
     if (d.error) throw new Error(d.error);
     adminUsuariosData = d.usuarios || [];
+    adminVetadasData = d.vetadas_lista || [];
     cupoInfo.innerHTML = "Cupo beta (cortesía): <strong>"+d.activos+" / "+d.cupo_max+"</strong> · <strong>"+d.espera+"</strong> en espera · "+(d.plazas_libres > 0 ? "<span style='color:#2e7d32'>"+d.plazas_libres+" plazas libres</span>" : "<span style='color:#c62828'>Cupo lleno</span>")+" <span style='color:#999'>(colaboradores y VIP no ocupan plaza)</span>";
     renderCupoStats(d);
     renderAdminUserList(adminUsuariosData);
@@ -1887,23 +1894,104 @@ function renderCupoStats(d) {
   if (!el) return;
   var s = d.stats;
   if (!s) { el.innerHTML = ""; return; }
-  function chip(lbl, val, cls) { return "<span class='st"+(cls?" "+cls:"")+"'>"+lbl+" <b>"+val+"</b></span>"; }
+  function chip(lbl, val, cls, key) {
+    var num = (typeof val === "number") ? val : parseInt(val, 10);
+    var clickable = key && num > 0;
+    return "<span class='st"+(cls?" "+cls:"")+(clickable?" clickable":"")+"'"+
+      (clickable ? " onclick=\"mostrarUsuariosCategoria('"+key+"','"+lbl.replace(/'/g,"")+"')\"" : "")+
+      ">"+lbl+" <b>"+val+"</b></span>";
+  }
   var cupoLleno = (d.plazas_libres || 0) <= 0;
   el.innerHTML =
-    chip("Total", s.total, "big") +
-    chip("Cupo (cortesía)", s.activos + " / " + d.cupo_max, cupoLleno ? "big warn" : "big") +
+    chip("Total", s.total, "big", "total") +
+    chip("Cupo (cortesía)", s.activos + " / " + d.cupo_max, cupoLleno ? "big warn" : "big", "cupo") +
     "<span class='sep'></span>" +
-    chip("Cortesía", s.cortesia) +
-    chip("Colaboradores", s.colaborador) +
-    chip("VIP", s.vip) +
-    chip("Admin", s.admin) +
+    chip("Cortesía", s.cortesia, "", "cortesia") +
+    chip("Colaboradores", s.colaborador, "", "colaborador") +
+    chip("VIP", s.vip, "", "vip") +
+    chip("Admin", s.admin, "", "admin") +
     "<span class='sep'></span>" +
-    chip("En espera", s.espera) +
-    chip("En penumbra", s.expirados) +
+    chip("En espera", s.espera, "", "espera") +
+    chip("En penumbra", s.expirados, "", "expirado") +
     "<span class='sep'></span>" +
-    chip("Bloqueados", s.bloqueado) +
-    chip("Bajas", s.baja) +
-    chip("Vetadas", s.vetadas);
+    chip("Bloqueados", s.bloqueado, "", "bloqueado") +
+    chip("Bajas", s.baja, "", "baja") +
+    chip("Vetadas", s.vetadas, "", "vetadas");
+}
+
+function _usuariosDeCategoria(key) {
+  var d = adminUsuariosData;
+  var vivo = function(u){ return u.estado !== "baja"; };
+  switch (key) {
+    case "total":       return d.slice();
+    case "cupo":        return d.filter(function(u){ return u.estado === "activo" && u.categoria !== "vip" && u.categoria !== "colaborador" && u.categoria !== "bloqueado"; });
+    case "cortesia":    return d.filter(function(u){ return vivo(u) && u.categoria === "cortesia"; });
+    case "colaborador": return d.filter(function(u){ return vivo(u) && u.categoria === "colaborador"; });
+    case "vip":         return d.filter(function(u){ return vivo(u) && u.categoria === "vip"; });
+    case "admin":       return [{ nombre: "Administrador", email: (currentUser && currentUser.email) || "" , categoria: "admin", estado: "activo", _noSel: true }];
+    case "espera":      return d.filter(function(u){ return u.estado === "espera"; });
+    case "expirado":    return d.filter(function(u){ return u.estado === "expirado"; });
+    case "bloqueado":   return d.filter(function(u){ return vivo(u) && u.categoria === "bloqueado"; });
+    case "baja":        return d.filter(function(u){ return u.estado === "baja"; });
+    case "vetadas":     return adminVetadasData.map(function(v){ return { nombre: "(cuenta vetada)", email: v.email, categoria: "vetada", estado: "vetada", _noSel: true, _extra: "→ " + (v.usuario_principal || "?") + (v.motivo ? " · " + v.motivo : "") }; });
+    default:            return [];
+  }
+}
+
+function mostrarUsuariosCategoria(key, label) {
+  var lista = _usuariosDeCategoria(key).slice().sort(function(a, b){
+    return String(a.nombre || a.email).localeCompare(String(b.nombre || b.email), "es", { sensitivity: "base" });
+  });
+
+  var overlay = document.createElement("div");
+  overlay.id = "usuariosCatOverlay";
+  overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;";
+
+  var box = document.createElement("div");
+  box.style.cssText = "background:#fff;border-radius:12px;max-width:520px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.25);overflow:hidden;";
+
+  var header = document.createElement("div");
+  header.style.cssText = "padding:14px 18px;border-bottom:1px solid #e0e0e0;background:#f8f9fa;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;";
+  header.innerHTML = "<div style='font-weight:600;font-size:14px;color:#185FA5;'>" + escapeHtml(label) + " · " + lista.length + "</div>" +
+    "<button onclick='cerrarUsuariosCategoria()' style='background:none;border:none;font-size:20px;cursor:pointer;color:#999;padding:2px 6px;line-height:1;'>✕</button>";
+
+  var body = document.createElement("div");
+  body.style.cssText = "padding:8px 0;overflow-y:auto;flex:1;";
+  body.innerHTML = lista.length
+    ? lista.map(function(u){
+        var tag = escapeHtml(u.estado === "espera" ? "espera" : u.estado === "expirado" ? "penumbra" : u.estado === "baja" ? "baja" : u.categoria || "");
+        var sel = u._noSel ? "" : " data-email='" + escapeHtml(u.email) + "' class='cat-row-sel'";
+        return "<div" + sel + " style='padding:8px 18px;border-bottom:0.5px solid #f0f0f0;font-size:13px;display:flex;justify-content:space-between;gap:10px;align-items:baseline;" + (u._noSel ? "" : "cursor:pointer;") + "'>" +
+          "<span><strong>" + escapeHtml(u.nombre || "—") + "</strong><br><span style='font-size:11px;color:#888;'>" + escapeHtml(u.email || "") + (u._extra ? " " + escapeHtml(u._extra) : "") + "</span></span>" +
+          "<span style='font-size:10px;color:#888;flex-shrink:0;'>" + tag + "</span></div>";
+      }).join("")
+    : "<div style='padding:16px 18px;color:#888;font-size:13px;'>Sin usuarios en esta categoría.</div>";
+
+  box.appendChild(header);
+  box.appendChild(body);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  body.querySelectorAll(".cat-row-sel").forEach(function(row){
+    row.addEventListener("click", function(){
+      var em = row.getAttribute("data-email");
+      cerrarUsuariosCategoria();
+      if (em) seleccionarUsuarioAdmin(em);
+    });
+  });
+
+  overlay.addEventListener("click", function(ev){ if (ev.target === overlay) cerrarUsuariosCategoria(); });
+  var escHandler = function(ev){ if (ev.key === "Escape") cerrarUsuariosCategoria(); };
+  document.addEventListener("keydown", escHandler);
+  overlay._escHandler = escHandler;
+}
+
+function cerrarUsuariosCategoria() {
+  var overlay = document.getElementById("usuariosCatOverlay");
+  if (overlay) {
+    if (overlay._escHandler) document.removeEventListener("keydown", overlay._escHandler);
+    overlay.remove();
+  }
 }
 
 function renderAdminUserList(lista) {
