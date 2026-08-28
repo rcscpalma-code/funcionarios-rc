@@ -1875,7 +1875,7 @@ async function loadAdminUsuarios() {
     var d = await proxyFetch({ action:"getUsuarios", email:currentUser.email });
     if (d.error) throw new Error(d.error);
     adminUsuariosData = d.usuarios || [];
-    cupoInfo.innerHTML = "<strong>"+d.activos+"</strong> activos · <strong>"+d.espera+"</strong> en espera · Cupo: <strong>"+d.activos+" / "+d.cupo_max+"</strong> · "+(d.plazas_libres > 0 ? "<span style='color:#2e7d32'>"+d.plazas_libres+" plazas libres</span>" : "<span style='color:#c62828'>Cupo lleno</span>");
+    cupoInfo.innerHTML = "Cupo beta (cortesía): <strong>"+d.activos+" / "+d.cupo_max+"</strong> · <strong>"+d.espera+"</strong> en espera · "+(d.plazas_libres > 0 ? "<span style='color:#2e7d32'>"+d.plazas_libres+" plazas libres</span>" : "<span style='color:#c62828'>Cupo lleno</span>")+" <span style='color:#999'>(colaboradores y VIP no ocupan plaza)</span>";
     renderCupoStats(d);
     renderAdminUserList(adminUsuariosData);
     cargarConfigAdmin();
@@ -1891,7 +1891,7 @@ function renderCupoStats(d) {
   var cupoLleno = (d.plazas_libres || 0) <= 0;
   el.innerHTML =
     chip("Total", s.total, "big") +
-    chip("Activos", s.activos + " / " + d.cupo_max, cupoLleno ? "big warn" : "big") +
+    chip("Cupo (cortesía)", s.activos + " / " + d.cupo_max, cupoLleno ? "big warn" : "big") +
     "<span class='sep'></span>" +
     chip("Cortesía", s.cortesia) +
     chip("Colaboradores", s.colaborador) +
