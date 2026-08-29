@@ -179,6 +179,9 @@
     .importe-selector { display: flex; gap: 14px; justify-content: center; font-size: 13px; color: #555; margin-top: 8px; }
     .importe-selector label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
     .importe-selector input { cursor: pointer; }
+    .comprobante-selector { margin-top: 10px; text-align: left; }
+    .comprobante-label { display: block; font-size: 11px; color: #888; margin-bottom: 4px; }
+    .comprobante-selector input[type="file"] { font-size: 11px; max-width: 100%; }
     .aportar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 50; align-items: center; justify-content: center; padding: 20px; }
     .aportar-card { background: #fff; border-radius: 14px; padding: 28px 24px 22px; max-width: 340px; width: 100%; text-align: center; position: relative; }
     .aportar-close { position: absolute; top: 8px; right: 10px; border: none; background: none; font-size: 20px; line-height: 1; color: #999; cursor: pointer; padding: 4px; }
@@ -386,6 +389,10 @@
         <label><input type="radio" name="importeLimite" value="10" checked> 10 €</label>
         <label><input type="radio" name="importeLimite" value="15"> 15 €</label>
       </div>
+      <div class="comprobante-selector">
+        <label class="comprobante-label" for="comprobanteInputLimite">📷 Adjuntar foto del resguardo (opcional, ayuda a confirmarlo antes)</label>
+        <input type="file" accept="image/*" id="comprobanteInputLimite">
+      </div>
       <div style="margin-top:10px;font-size:11px;color:#888;line-height:1.5;">
         Tras confirmar el pago, el administrador activará tu acceso.
       </div>
@@ -412,6 +419,10 @@
           <label><input type="radio" name="importeAnticipado" value="5"> 5 €</label>
           <label><input type="radio" name="importeAnticipado" value="10" checked> 10 €</label>
           <label><input type="radio" name="importeAnticipado" value="15"> 15 €</label>
+        </div>
+        <div class="comprobante-selector">
+          <label class="comprobante-label" for="comprobanteInputAnticipado">📷 Adjuntar foto del resguardo (opcional, ayuda a confirmarlo antes)</label>
+          <input type="file" accept="image/*" id="comprobanteInputAnticipado">
         </div>
         <div style="margin-top:10px;font-size:11px;color:#888;line-height:1.5;">
           Tras confirmar el pago, el administrador activará o ampliará tu saldo.
@@ -931,14 +942,44 @@ function mostrarLimitePanel(acceso) {
   document.getElementById("limitePanel").style.display = "flex";
 }
 
+// Lee un <input type="file"> como base64 sin el prefijo "data:...;base64,".
+// Devuelve null si no hay archivo seleccionado. Límite de 8MB (fotos de
+// móvil suelen bastar muy por debajo de eso; evita subidas larguísimas
+// sobre datos móviles).
+function leerArchivoBase64(inputEl) {
+  return new Promise(function(resolve, reject) {
+    var file = inputEl && inputEl.files && inputEl.files[0];
+    if (!file) { resolve(null); return; }
+    if (file.size > 8 * 1024 * 1024) { reject(new Error("La imagen pesa más de 8MB, elige una más ligera.")); return; }
+    var reader = new FileReader();
+    reader.onload = function() {
+      var base64 = String(reader.result).split(",")[1] || "";
+      resolve({ base64: base64, mimeType: file.type || "image/jpeg", nombre: file.name || "comprobante.jpg" });
+    };
+    reader.onerror = function() { reject(new Error("No se pudo leer el archivo.")); };
+    reader.readAsDataURL(file);
+  });
+}
+
 async function mostrarInstruccionesPago() {
   var status = document.getElementById("limiteStatus");
   status.innerHTML = "⏳ Registrando tu aportación…";
   var radio = document.querySelector('input[name="importeLimite"]:checked');
   var importe = radio ? radio.value : 10;
+  var comprobante = null;
   try {
-    var r = await proxyFetch({ action: "registrarIntencionAportacion", email: currentUser.email, importe: importe });
+    comprobante = await leerArchivoBase64(document.getElementById("comprobanteInputLimite"));
+  } catch(e) {
+    status.innerHTML = "⚠️ " + e.message + " Puedes seguir sin adjuntarla, o elige otra imagen y vuelve a pulsar el botón.";
+    return;
+  }
+  if (comprobante) status.innerHTML = "⏳ Subiendo comprobante…";
+  try {
+    var payload = { action: "registrarIntencionAportacion", email: currentUser.email, importe: importe };
+    if (comprobante) Object.assign(payload, comprobante);
+    var r = await proxyFetch(payload);
     status.innerHTML = "✅ " + (r.msg || "Aportación registrada.") +
+      (r.comprobante_subido ? " Comprobante recibido." : "") +
       " Si prefieres, también puedes enviar el comprobante a <strong>fororegistrocivil@gmail.com</strong> indicando tu email.";
     if (r.conciliado) { setTimeout(function(){ showApp(); }, 1500); }
   } catch(e) {
@@ -961,9 +1002,20 @@ async function mostrarInstruccionesPagoAnticipado() {
   status.innerHTML = "⏳ Registrando tu aportación…";
   var radio = document.querySelector('input[name="importeAnticipado"]:checked');
   var importe = radio ? radio.value : 10;
+  var comprobante = null;
   try {
-    var r = await proxyFetch({ action: "registrarIntencionAportacion", email: currentUser.email, importe: importe });
+    comprobante = await leerArchivoBase64(document.getElementById("comprobanteInputAnticipado"));
+  } catch(e) {
+    status.innerHTML = "⚠️ " + e.message + " Puedes seguir sin adjuntarla, o elige otra imagen y vuelve a pulsar el botón.";
+    return;
+  }
+  if (comprobante) status.innerHTML = "⏳ Subiendo comprobante…";
+  try {
+    var payload = { action: "registrarIntencionAportacion", email: currentUser.email, importe: importe };
+    if (comprobante) Object.assign(payload, comprobante);
+    var r = await proxyFetch(payload);
     status.innerHTML = "✅ " + (r.msg || "Aportación registrada.") +
+      (r.comprobante_subido ? " Comprobante recibido." : "") +
       " Si prefieres, también puedes enviar el comprobante a <strong>fororegistrocivil@gmail.com</strong> indicando tu email.";
     if (r.conciliado) { setTimeout(function(){ cerrarModalColaborar(); showApp(); }, 1500); }
   } catch(e) {
