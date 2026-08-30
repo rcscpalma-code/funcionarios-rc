@@ -2122,8 +2122,9 @@ async function cargarAportacionesPendientes(silencioso) {
       var comprobante = p.comprobante_url ? " · <a href='"+p.comprobante_url+"' target='_blank' rel='noopener'>📎 resguardo</a>" : "";
       var etiqueta = p.estado === "sin_match" ? "<span style='color:#e65100'>aviso de banco</span>" : "declarada por el usuario";
       var acciones = "";
-      if (p.email) acciones += "<button class='btn-success' style='font-size:11px;padding:4px 10px;' onclick=\"aprobarAportacion('"+encodeURIComponent(p.email)+"',"+imp+")\">✅ Aprobar ("+imp.toFixed(2)+" €)</button> ";
-      acciones += "<button class='btn-error' style='font-size:11px;padding:4px 10px;' onclick=\"descartarAportacion("+p.fila+")\">🗑️ Descartar</button>";
+      if (p.email) acciones += "<button class='btn-success' style='font-size:11px;padding:4px 10px;' onclick=\"aprobarAportacion('"+encodeURIComponent(p.email)+"',"+imp+")\">✅ Aprobar y recargar ("+imp.toFixed(2)+" €)</button> ";
+      acciones += "<button class='btn-secondary' style='font-size:11px;padding:4px 10px;' onclick=\"cerrarAportacion("+p.fila+",'ya_validada')\">☑️ Ya estaba validada</button> ";
+      acciones += "<button class='btn-error' style='font-size:11px;padding:4px 10px;' onclick=\"cerrarAportacion("+p.fila+",'descartada')\">🗑️ No llegó</button>";
       return "<div style='background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:13px;'>" +
         "<div><strong>"+escapeHtml(quien)+"</strong>"+(p.email && p.nombre ? " <span style='font-size:11px;color:#888;'>"+escapeHtml(p.email)+"</span>" : "")+"</div>" +
         "<div style='font-size:11px;color:#888;margin:2px 0 6px;'>"+etiqueta+" · "+escapeHtml(String(p.timestamp))+" · importe: "+imp.toFixed(2)+" €"+comprobante+"</div>" +
@@ -2149,10 +2150,13 @@ async function aprobarAportacion(emailEnc, importe) {
   } catch(e) { showCopyToast("❌ " + e.message); }
 }
 
-async function descartarAportacion(fila) {
-  if (!confirm("¿Descartar esta aportación pendiente sin conceder crédito?")) return;
+async function cerrarAportacion(fila, modo) {
+  var txt = modo === "ya_validada"
+    ? "Marcar como YA VALIDADA: solo se quita de la lista, no se toca el saldo del usuario (ya lo tiene de antes). ¿Continuar?"
+    : "Marcar como NO LLEGÓ / descartar (sin conceder crédito). ¿Continuar?";
+  if (!confirm(txt)) return;
   try {
-    var d = await proxyFetch({ action:"descartarAportacionPendiente", email:currentUser.email, fila:fila });
+    var d = await proxyFetch({ action:"cerrarAportacionPendiente", email:currentUser.email, fila:fila, modo:modo });
     if (d.error) throw new Error(d.error);
     showCopyToast("✅ " + d.msg);
     cargarAportacionesPendientes();
