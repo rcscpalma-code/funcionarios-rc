@@ -694,6 +694,12 @@
             <div id="listaEsperaContainer" style="display:none;margin-top:12px;"></div>
           </div>
           <div class="admin-card">
+            <h3>💳 Aportaciones pendientes de revisar <span id="aportPendBadge" style="font-size:12px;color:#c62828;"></span></h3>
+            <p>Usuarios que han declarado una aportación (o avisos del banco sin asignar) que todavía no se han convertido en crédito automáticamente.</p>
+            <button class="btn-primary" onclick="cargarAportacionesPendientes()">🔄 Ver / actualizar</button>
+            <div id="aportacionesPendientesBox" style="margin-top:10px;"></div>
+          </div>
+          <div class="admin-card">
             <h3>👥 Gestión de usuarios</h3>
             <input type="text" class="user-search" id="userSearchInput" placeholder="Buscar por nombre o email…" oninput="filterAdminUsers()"/>
             <div class="user-search-count" id="userSearchCount"></div>
@@ -2096,7 +2102,61 @@ async function loadAdminUsuarios() {
     renderCupoStats(d);
     renderAdminUserList(adminUsuariosData);
     cargarConfigAdmin();
+    cargarAportacionesPendientes(true);
   } catch(e) { cupoInfo.textContent = "❌ Error: " + e.message; }
+}
+
+async function cargarAportacionesPendientes(silencioso) {
+  var box = document.getElementById("aportacionesPendientesBox");
+  var badge = document.getElementById("aportPendBadge");
+  if (!silencioso) box.innerHTML = "<div style='color:#888;font-size:13px;'>⏳ Cargando…</div>";
+  try {
+    var d = await proxyFetch({ action:"getAportacionesPendientes", email:currentUser.email });
+    if (d.error) throw new Error(d.error);
+    var lista = d.pendientes || [];
+    if (badge) badge.textContent = lista.length ? "· " + lista.length + " pendiente(s)" : "";
+    if (!lista.length) { box.innerHTML = "<div style='background:#e8f5e9;border:1px solid #c8e6c9;border-radius:8px;padding:8px 12px;font-size:13px;color:#2e7d32;'>✅ No hay aportaciones pendientes de revisar.</div>"; return; }
+    box.innerHTML = lista.map(function(p) {
+      var quien = p.nombre || p.email || (p.estado === "sin_match" ? "(aviso de banco sin asignar)" : "—");
+      var imp = p.importe_declarado || p.importe_detectado || 0;
+      var comprobante = p.comprobante_url ? " · <a href='"+p.comprobante_url+"' target='_blank' rel='noopener'>📎 resguardo</a>" : "";
+      var etiqueta = p.estado === "sin_match" ? "<span style='color:#e65100'>aviso de banco</span>" : "declarada por el usuario";
+      var acciones = "";
+      if (p.email) acciones += "<button class='btn-success' style='font-size:11px;padding:4px 10px;' onclick=\"aprobarAportacion('"+encodeURIComponent(p.email)+"',"+imp+")\">✅ Aprobar ("+imp.toFixed(2)+" €)</button> ";
+      acciones += "<button class='btn-error' style='font-size:11px;padding:4px 10px;' onclick=\"descartarAportacion("+p.fila+")\">🗑️ Descartar</button>";
+      return "<div style='background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:13px;'>" +
+        "<div><strong>"+escapeHtml(quien)+"</strong>"+(p.email && p.nombre ? " <span style='font-size:11px;color:#888;'>"+escapeHtml(p.email)+"</span>" : "")+"</div>" +
+        "<div style='font-size:11px;color:#888;margin:2px 0 6px;'>"+etiqueta+" · "+escapeHtml(String(p.timestamp))+" · importe: "+imp.toFixed(2)+" €"+comprobante+"</div>" +
+        "<div>"+acciones+"</div>" +
+        "<div class='apt-status' style='font-size:12px;margin-top:4px;'></div>" +
+        "</div>";
+    }).join("");
+  } catch(e) {
+    if (!silencioso) box.innerHTML = "<div style='color:#c00;font-size:13px;'>❌ " + escapeHtml(e.message) + "</div>";
+  }
+}
+
+async function aprobarAportacion(emailEnc, importe) {
+  var email = decodeURIComponent(emailEnc);
+  if (!confirm("Registrar una aportación de " + importe.toFixed(2) + " € para " + email + " (pasa a colaborador y se cierra la aportación pendiente)?")) return;
+  try {
+    var d = await proxyFetch({ action:"gestionarUsuario", email:currentUser.email, target_email:email, accion:"ajustar_credito", importe:importe });
+    if (d.error) throw new Error(d.error);
+    showCopyToast("✅ " + d.msg);
+    await loadAdminUsuarios();
+    var sel = adminUsuariosData.find(function(u){ return u.email === email; });
+    if (sel) seleccionarUsuarioAdmin(email);
+  } catch(e) { showCopyToast("❌ " + e.message); }
+}
+
+async function descartarAportacion(fila) {
+  if (!confirm("¿Descartar esta aportación pendiente sin conceder crédito?")) return;
+  try {
+    var d = await proxyFetch({ action:"descartarAportacionPendiente", email:currentUser.email, fila:fila });
+    if (d.error) throw new Error(d.error);
+    showCopyToast("✅ " + d.msg);
+    cargarAportacionesPendientes();
+  } catch(e) { showCopyToast("❌ " + e.message); }
 }
 
 function renderCupoStats(d) {
@@ -2271,10 +2331,16 @@ async function accionAdmin(accion, extraParams) {
   try {
     var d = await proxyFetch(params);
     if (d.error) throw new Error(d.error);
-    status.innerHTML = "<div class='status-msg status-ok'>✅ " + d.msg + "</div>";
-    await loadAdminUsuarios();
-    var actualizado = adminUsuariosData.find(function(u){ return u.email === adminUsuarioSeleccionado.email; });
-    if (actualizado) seleccionarUsuarioAdmin(actualizado.email);
+    var emailFicha = (d.usuario && d.usuario.email) ? d.usuario.email : adminUsuarioSeleccionado.email;
+    // El backend devuelve el usuario ya actualizado: lo aplicamos de
+    // inmediato para no depender de que el getUsuarios de después funcione.
+    if (d.usuario && d.usuario.email) {
+      var i = adminUsuariosData.findIndex(function(u){ return u.email === d.usuario.email; });
+      if (i >= 0) adminUsuariosData[i] = d.usuario; else adminUsuariosData.push(d.usuario);
+    }
+    try { await loadAdminUsuarios(); } catch(e2) {}
+    seleccionarUsuarioAdmin(emailFicha);
+    document.getElementById("userDetailStatus").innerHTML = "<div class='status-msg status-ok'>✅ " + d.msg + "</div>";
   } catch(e) { status.innerHTML = "<div class='status-msg status-err'>❌ Error: " + e.message + "</div>"; }
 }
 
