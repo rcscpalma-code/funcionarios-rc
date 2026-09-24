@@ -1398,6 +1398,34 @@ function verHistorialDetalleTodos(idx) {
   actualizarNavHistorial(idx);
 }
 
+function _normHistTxt(s) { return (s||"").trim().replace(/\s+/g," ").toLowerCase(); }
+
+// Turno fallido (network error, timeout...) cuya pregunta es nueva en la
+// conversación: se guarda igual en el Historial, con la respuesta vacía y
+// una nota explicando el fallo, para que no desaparezca sin dejar rastro.
+async function guardarFalloEnHistorial(pregunta, mensajeError) {
+  if (!currentUser) return;
+  try {
+    await proxyFetch({ action:"guardarHistorial", email:currentUser.email, nombre:currentUser.name,
+      pregunta:pregunta, respuesta:"⚠️ (Sin respuesta — fallo de conexión: "+mensajeError+")", docs:"" });
+  } catch(e) {}
+}
+
+// Reintento de una pregunta que ya está en la conversación (tras un fallo):
+// no se duplica la entrada del Historial, solo se comprueba si aquel primer
+// intento llegó a cobrarse en el backend antes de perderse la respuesta, y
+// si es así se reembolsa automáticamente.
+async function comprobarYReembolsarFallo(pregunta) {
+  if (!currentUser) return;
+  try {
+    var d = await proxyFetch({ action:"comprobarYReembolsarFallo", email:currentUser.email, pregunta:pregunta });
+    if (d && d.reembolsado) {
+      loadMiConsumo();
+      showCopyToast("Ese intento anterior sí se había cobrado antes de perderse la respuesta — se ha reembolsado automáticamente.");
+    }
+  } catch(e) {}
+}
+
 var _ultimoHistorialGuardado = { texto: "", ts: 0 };
 async function guardarEnHistorial(pregunta, respuesta, docsUsados) {
   if (!currentUser) return;
@@ -1882,7 +1910,20 @@ async function sendMessage() {
     }
   } catch(e) {
     if (e.name === "AbortError") { messages.pop(); input.value = textoOriginal; }
-    else { messages.push({ role:"assistant", content:"Error: "+e.message }); }
+    else {
+      // messages termina en el mensaje de usuario que se acaba de enviar
+      // (sin contar ese, ¿esta misma pregunta ya aparece antes en la
+      // conversación?) -- si es así, es un reintento tras un fallo previo:
+      // no se guarda una entrada nueva, solo se comprueba si aquel intento
+      // sí llegó a cobrarse en el backend y se reembolsa. Si es una pregunta
+      // nueva, se guarda como fallida para que no desaparezca sin rastro.
+      var yaPreguntado = messages.slice(0, -1).some(function(m){
+        return m.role === "user" && _normHistTxt(m.content) === _normHistTxt(text);
+      });
+      messages.push({ role:"assistant", content:"Error: "+e.message });
+      if (yaPreguntado) comprobarYReembolsarFallo(text);
+      else guardarFalloEnHistorial(text, e.message);
+    }
   }
   loading = false;
   abortController = null;
